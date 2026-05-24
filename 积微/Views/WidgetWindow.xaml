@@ -1,0 +1,164 @@
+<Window x:Class="积微.Views.WidgetWindow" xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml" xmlns:d="http://schemas.microsoft.com/expression/blend/2008" xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006" mc:Ignorable="d" Title="番茄钟小组件" Width="430" Height="110" WindowStyle="None" AllowsTransparency="True" Background="Transparent" ShowInTaskbar="False" ResizeMode="NoResize" PreviewKeyDown="Window_PreviewKeyDown">
+    <Window.Resources>
+        <DropShadowEffect x:Key="WidgetShadow" Color="#000000" Opacity="0.2" BlurRadius="10" ShadowDepth="2"/>
+        
+        <Style x:Key="WidgetButtonStyle" TargetType="Button">
+            <Setter Property="FocusVisualStyle" Value="{x:Null}"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border x:Name="ButtonBorder" CornerRadius="8" Background="{TemplateBinding Background}" BorderThickness="0" Padding="2">
+                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="ButtonBorder" Property="Opacity" Value="0.8"/>
+                            </Trigger>
+                            <Trigger Property="IsPressed" Value="True">
+                                <Setter TargetName="ButtonBorder" Property="Opacity" Value="0.6"/>
+                                <Setter TargetName="ButtonBorder" Property="RenderTransform">
+                                    <Setter.Value>
+                                        <ScaleTransform ScaleX="0.95" ScaleY="0.95"/>
+                                    </Setter.Value>
+                                </Setter>
+                                <Setter TargetName="ButtonBorder" Property="RenderTransformOrigin" Value="0.5,0.5"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+            <Setter Property="Cursor" Value="Hand"/>
+        </Style>
+        
+        <Style x:Key="ModeToggleButtonStyle" TargetType="Button">
+            <Setter Property="FocusVisualStyle" Value="{x:Null}"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border x:Name="ButtonBorder" CornerRadius="10" Background="{TemplateBinding Background}" BorderThickness="1" BorderBrush="#E5E7EB" Padding="8,3">
+                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="ButtonBorder" Property="Background" Value="#D1D5DB"/>
+                            </Trigger>
+                            <Trigger Property="IsPressed" Value="True">
+                                <Setter TargetName="ButtonBorder" Property="Background" Value="#9CA3AF"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+            <Setter Property="FontSize" Value="11"/>
+            <Setter Property="Foreground" Value="#4B5563"/>
+            <Setter Property="Cursor" Value="Hand"/>
+        </Style>
+        
+        <Style x:Key="GoalButtonStyle" TargetType="Button">
+            <Setter Property="FocusVisualStyle" Value="{x:Null}"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border x:Name="ButtonBorder" CornerRadius="10" Background="{TemplateBinding Background}" BorderThickness="0" Padding="8,2">
+                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="ButtonBorder" Property="Background" Value="#E5E7EB"/>
+                            </Trigger>
+                            <Trigger Property="IsPressed" Value="True">
+                                <Setter TargetName="ButtonBorder" Property="Background" Value="#D1D5DB"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+            <Setter Property="FontSize" Value="10"/>
+            <Setter Property="Foreground" Value="#4B5563"/>
+            <Setter Property="Background" Value="#F3F4F6"/>
+            <Setter Property="Cursor" Value="Hand"/>
+        </Style>
+    </Window.Resources>
+    
+    <Border Background="{DynamicResource CardBackground}" CornerRadius="14" Effect="{StaticResource WidgetShadow}" Padding="16,8">
+        <Grid x:Name="MainGrid">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*"/>
+                <ColumnDefinition Width="20"/>
+                <ColumnDefinition x:Name="RightColumn" Width="200"/>
+            </Grid.ColumnDefinitions>
+            
+            <!-- 左边部分 (包含计时表和目标按钮) -->
+            <Grid x:Name="LeftPanel" Grid.Column="0" HorizontalAlignment="Stretch" VerticalAlignment="Center">
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="Auto"/>
+                </Grid.RowDefinitions>
+                
+                <!-- 第一行：标签 -->
+                <TextBlock Grid.Row="0" x:Name="SessionText" FontSize="11" Text="专注" Foreground="#6B7280" HorizontalAlignment="Center" Margin="0,0,0,4"/>
+                
+                <!-- 第二行：计时表 -->
+                <TextBlock Grid.Row="1" x:Name="TimerText" FontSize="40" FontWeight="Bold" Text="25:00" Foreground="{DynamicResource TextPrimary}" HorizontalAlignment="Center" Margin="0,0,0,6"/>
+                
+                <!-- 第三行：目标选择按钮 -->
+                <Button Grid.Row="2" x:Name="GoalButton" Click="GoalButton_Click" Width="120" Height="20" Style="{StaticResource GoalButtonStyle}" HorizontalAlignment="Center"/>
+            </Grid>
+            
+            <!-- 展开/收起按钮 -->
+            <Button Grid.Column="1" x:Name="ToggleExpandButton" Click="ToggleExpandButton_Click" Width="20" Height="80" Style="{StaticResource WidgetButtonStyle}" Background="Transparent" ToolTip="展开/收起" VerticalAlignment="Center" HorizontalAlignment="Right" Margin="0">
+                <Grid HorizontalAlignment="Center" VerticalAlignment="Center">
+                    <Line X1="9" Y1="15" X2="9" Y2="65" Stroke="#D1D5DB" StrokeThickness="1.5"/>
+                    <Line X1="11" Y1="15" X2="11" Y2="65" Stroke="#D1D5DB" StrokeThickness="1.5"/>
+                </Grid>
+            </Button>
+            
+            <!-- 右边部分 (仅在展开状态显示) -->
+            <Grid x:Name="RightPanel" Grid.Column="2" HorizontalAlignment="Center" VerticalAlignment="Center">
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="*"/>
+                    <RowDefinition Height="*"/>
+                </Grid.RowDefinitions>
+                
+                <!-- 上面一行：番茄钟、计时器按钮 -->
+                <StackPanel Grid.Row="0" Orientation="Horizontal" HorizontalAlignment="Center" VerticalAlignment="Bottom" Margin="0,0,0,6">
+                    <Button x:Name="PomodoroModeButton" Click="PomodoroModeButton_Click" Style="{StaticResource ModeToggleButtonStyle}" Background="#9CA3AF" Foreground="White" Margin="0,0,6,0" MinWidth="50">
+                        番茄钟
+                    </Button>
+                    <Button x:Name="TimerModeButton" Click="TimerModeButton_Click" Style="{StaticResource ModeToggleButtonStyle}" Background="#F3F4F6" Margin="6,0,0,0" MinWidth="50">
+                        计时器
+                    </Button>
+                </StackPanel>
+                
+                <!-- 下面一行：各种控制按钮 -->
+                <StackPanel Grid.Row="1" Orientation="Horizontal" HorizontalAlignment="Center" VerticalAlignment="Top">
+                    <!-- 重置按钮 -->
+                    <Button x:Name="ResetButton" Click="ResetButton_Click" Width="36" Height="36" Style="{StaticResource WidgetButtonStyle}" Background="Transparent" ToolTip="重置" Margin="0,0,6,0">
+                        <Path Data="M17.65,6.35C16.2,4.9 14.21,4 12,4A8,8 0 0,0 4,12A8,8 0 0,0 12,20C15.73,20 18.84,17.45 19.73,14H17.65C16.83,16.33 14.61,18 12,18A6,6 0 0,1 6,12A6,6 0 0,1 12,6C13.66,6 15.14,6.69 16.22,7.78L13,11H20V4L17.65,6.35Z" Fill="#6B7280" Width="16" Height="16" Stretch="Uniform"/>
+                    </Button>
+                    
+                    <!-- 播放/暂停按钮 -->
+                    <Button x:Name="PlayPauseButton" Click="PlayPauseButton_Click" Width="36" Height="36" Style="{StaticResource WidgetButtonStyle}" Background="Transparent" ToolTip="播放/暂停" Margin="0,0,6,0">
+                        <Path x:Name="PlayPauseIcon" Data="M8,5.14V19.14L19,12.14L8,5.14Z" Fill="#6B7280" Width="16" Height="16" Stretch="Uniform"/>
+                    </Button>
+                    
+                    <!-- 停止按钮 -->
+                    <Button x:Name="StopButton" Click="StopButton_Click" Width="36" Height="36" Style="{StaticResource WidgetButtonStyle}" Background="Transparent" ToolTip="停止" Margin="0,0,6,0">
+                        <Path Data="M6,6H18V18H6V6Z" Fill="#6B7280" Width="16" Height="16" Stretch="Uniform"/>
+                    </Button>
+                    
+                    <!-- 模式切换按钮 (番茄钟: 专注/休息, 计时器: 秒表/倒计时) -->
+                    <Button x:Name="ModeToggleButton" Click="ModeToggleButton_Click" Width="36" Height="36" Style="{StaticResource WidgetButtonStyle}" Background="Transparent" ToolTip="切换模式" Margin="0,0,6,0">
+                        <Path x:Name="ModeToggleIcon" Data="M12,20A8,8 0 0,0 20,12A8,8 0 0,0 12,4A8,8 0 0,0 4,12A8,8 0 0,0 12,20M12.5,7V12.25L17,14.92L16.25,16.15L11,13V7H12.5Z" Fill="#6B7280" Width="16" Height="16" Stretch="Uniform"/>
+                    </Button>
+                    
+                    <!-- 白噪声按钮 -->
+                    <Button x:Name="WhiteNoiseButton" Click="WhiteNoiseButton_Click" Width="36" Height="36" Style="{StaticResource WidgetButtonStyle}" Background="Transparent" ToolTip="播放/暂停白噪音">
+                        <Path x:Name="WhiteNoiseIcon" Data="M12,3C12.55,3 13,3.45 13,4C13,4.55 12.55,5 12,5C11.45,5 11,4.55 11,4C11,3.45 11.45,3 12,3M3,13H6V11H3V13M7,13H10V11H7V13M11,13H14V11H11V13M15,13H18V11H15V13M19,13H22V11H19V13M3,17H6V15H3V17M7,17H10V15H7V17M11,17H14V15H11V17M15,17H18V15H15V17M19,17H22V15H19V17M3,9H6V7H3V9M7,9H10V7H7V9M11,9H14V7H11V9M15,9H18V7H15V9M19,9H22V7H19V9Z" Fill="#6B7280" Width="16" Height="16" Stretch="Uniform"/>
+                    </Button>
+                </StackPanel>
+            </Grid>
+        </Grid>
+    </Border>
+</Window>

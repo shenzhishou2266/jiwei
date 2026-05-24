@@ -1,0 +1,943 @@
+using System;
+using System.Collections.Generic;
+using System.Collections.ObjectModel;
+using System.Linq;
+using System.IO;
+using SW = System.Windows;
+using SWC = System.Windows.Controls;
+using SWInput = System.Windows.Input;
+using SWM = System.Windows.Media;
+using SWI = System.Windows.Media.Imaging;
+using 积微.Models;
+using 积微.Services;
+using 积微.Views;
+using 积微.Helpers;
+
+namespace 积微.Controls
+{
+    /// <summary>通用计时器控件，支持秒表和倒计时两种模式。</summary>
+    public partial class TimerControl : SWC.UserControl
+    {
+        private readonly TimerService _timerService;
+        /// <summary>获取或设置当前关联的目标。</summary>
+        public Goal CurrentGoal { get; set; }
+
+        private readonly SWM.Brush BlueBrush = new SWM.SolidColorBrush(SWM.Color.FromArgb(255, 59, 130, 246));
+        private readonly SWM.Brush Gray600Brush = new SWM.SolidColorBrush(SWM.Color.FromArgb(255, 75, 85, 99));
+        private readonly SWM.Brush WhiteBrush = SWM.Brushes.White;
+
+        private ObservableCollection<SWI.BitmapImage> _previewImages = new ObservableCollection<SWI.BitmapImage>();
+        private List<string> _previewImageBase64List = new List<string>();
+
+        public TimerControl()
+        {
+            InitializeComponent();
+            _timerService = TimerService.Instance;
+            _timerService.PropertyChanged += TimerService_PropertyChanged;
+
+            // 监听白噪音状态变化
+            var settings = SettingsManager.Current;
+            if (settings.WhiteNoiseManager is System.ComponentModel.INotifyPropertyChanged whiteNoiseManager)
+            {
+                whiteNoiseManager.PropertyChanged += WhiteNoiseManager_PropertyChanged;
+            }
+
+            Hours1.MaxValue = 2;
+            Hours2.MaxValue = 9;
+            Minutes1.MaxValue = 5;
+            Seconds1.MaxValue = 5;
+
+            Days1.SetValueWithoutAnimation(0);
+            Days2.SetValueWithoutAnimation(0);
+            Days3.SetValueWithoutAnimation(0);
+            Hours1.SetValueWithoutAnimation(0);
+            Hours2.SetValueWithoutAnimation(0);
+            Minutes1.SetValueWithoutAnimation(0);
+            Minutes2.SetValueWithoutAnimation(0);
+            Seconds1.SetValueWithoutAnimation(0);
+            Seconds2.SetValueWithoutAnimation(0);
+
+            ImagePreviewPanel.ItemsSource = _previewImages;
+            Loaded += (s, e) =>
+            {
+                SWInput.CommandManager.AddPreviewCanExecuteHandler(TimelineInputTextBox, OnPreviewCanExecutePaste);
+                SWInput.CommandManager.AddPreviewExecutedHandler(TimelineInputTextBox, OnPreviewExecutedPaste);
+                // 延迟设置默认目标为全局目标，确保GoalsPage已经加载
+                System.Windows.Application.Current.Dispatcher.BeginInvoke(new Action(() =>
+                {
+                    if (_timerService.CurrentGoal == null && GoalsPage.GlobalGoal != null)
+                    {
+                        _timerService.CurrentGoal = GoalsPage.GlobalGoal;
+                    }
+                }));
+            };
+
+            InitializeNumberScrollers();
+            LoadSettings();
+            UpdateTimerDisplay();
+            UpdatePlayPauseIcon();
+            UpdateWhiteNoiseIcon();
+        }
+
+        private void TimerService_PropertyChanged(object? sender, System.ComponentModel.PropertyChangedEventArgs e)
+        {
+            if (e.PropertyName == nameof(TimerService.TimeDisplay) ||
+                e.PropertyName == nameof(TimerService.Days) ||
+                e.PropertyName == nameof(TimerService.Hours) ||
+                e.PropertyName == nameof(TimerService.Minutes) ||
+                e.PropertyName == nameof(TimerService.Seconds))
+            {
+                UpdateTimerDisplay();
+            }
+            else if (e.PropertyName == nameof(TimerService.IsActive))
+            {
+                UpdatePlayPauseIcon();
+                SetScrollersEditable(!_timerService.IsActive);
+            }
+            else if (e.PropertyName == nameof(TimerService.IsStopwatchMode))
+            {
+                UpdateModeButtons();
+            }
+            else if (e.PropertyName == nameof(TimerService.CurrentGoal))
+            {
+                CurrentGoal = _timerService.CurrentGoal;
+                UpdateGoalDisplay();
+            }
+        }
+
+        private void UserControl_Loaded(object sender, SW.RoutedEventArgs e)
+        {
+            this.Focus();
+        }
+
+        private void UserControl_PreviewKeyDown(object sender, System.Windows.Input.KeyEventArgs e)
+        {
+            if (e.Key == System.Windows.Input.Key.Enter && TimelineOverlay.Visibility == SW.Visibility.Collapsed)
+            {
+                if (CurrentGoal != null)
+                {
+                    e.Handled = true;
+                    ShowTimelineInput();
+                }
+            }
+        }
+
+        private void ShowTimelineInput()
+        {
+            TimelineOverlay.Visibility = SW.Visibility.Visible;
+            TimelineInputTextBox.Text = "";
+            _previewImages.Clear();
+            _previewImageBase64List.Clear();
+            ImagePreviewPanel.Visibility = SW.Visibility.Collapsed;
+            TimelineInputTextBox.Focus();
+        }
+
+        private void HideTimelineInput()
+        {
+            TimelineOverlay.Visibility = SW.Visibility.Collapsed;
+            TimelineInputTextBox.Text = "";
+            _previewImages.Clear();
+            _previewImageBase64List.Clear();
+            ImagePreviewPanel.Visibility = SW.Visibility.Collapsed;
+            this.Focus();
+        }
+
+        private async void TimelineInputTextBox_PreviewKeyDown(object sender, SWInput.KeyEventArgs e)
+        {
+            try
+            {
+                if (e.Key == SWInput.Key.Enter)
+                {
+                    if ((SWInput.Keyboard.Modifiers & SWInput.ModifierKeys.Shift) == SWInput.ModifierKeys.Shift)
+                    {
+                        e.Handled = false;
+                    }
+                    else
+                    {
+                        e.Handled = true;
+                        await SaveTimelineEntry();
+                    }
+                }
+                else if (e.Key == SWInput.Key.Escape)
+                {
+                    e.Handled = true;
+                    CancelTimelineEntry();
+                }
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"Error in TimelineInputTextBox_PreviewKeyDown: {ex.Message}");
+            }
+        }
+
+        private async void SaveButton_Click(object sender, SW.RoutedEventArgs e)
+        {
+            try
+            {
+                await SaveTimelineEntry();
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"Error in SaveButton_Click: {ex.Message}");
+            }
+        }
+
+        private void CancelButton_Click(object sender, SW.RoutedEventArgs e)
+        {
+            CancelTimelineEntry();
+        }
+
+        private async System.Threading.Tasks.Task SaveTimelineEntry()
+        {
+            string text = TimelineInputTextBox.Text.Trim();
+            if ((!string.IsNullOrEmpty(text) || _previewImageBase64List.Count > 0) && CurrentGoal != null)
+            {
+                var type = TypeComboBox.SelectedIndex == 0 ? TimelineEntryType.Thought : TimelineEntryType.Question;
+                if (_previewImageBase64List.Count > 0)
+                {
+                    CurrentGoal.AddTimelineEntry(text, type, null, new List<string>(_previewImageBase64List));
+                }
+                else
+                {
+                    CurrentGoal.AddTimelineEntry(text, type);
+                }
+                await DataStorageService.SaveGoalsAsync(GoalsPage.Goals);
+            }
+            HideTimelineInput();
+        }
+
+        private void CancelTimelineEntry()
+        {
+            HideTimelineInput();
+        }
+
+        private void OnPreviewCanExecutePaste(object sender, SWInput.CanExecuteRoutedEventArgs e)
+        {
+            if (e.Command == SWInput.ApplicationCommands.Paste && TimelineOverlay.Visibility == SW.Visibility.Visible)
+            {
+                e.CanExecute = true;
+                e.Handled = true;
+            }
+        }
+
+        private void OnPreviewExecutedPaste(object sender, SWInput.ExecutedRoutedEventArgs e)
+        {
+            if (e.Command == SWInput.ApplicationCommands.Paste && TimelineOverlay.Visibility == SW.Visibility.Visible)
+            {
+                try
+                {
+                    var dataObject = SW.Clipboard.GetDataObject();
+                    if (dataObject != null)
+                    {
+                        bool handled = false;
+                        
+                        if (dataObject.GetDataPresent(SW.DataFormats.Bitmap))
+                        {
+                            var bitmapSource = dataObject.GetData(SW.DataFormats.Bitmap) as SWI.BitmapSource;
+                            if (bitmapSource != null)
+                            {
+                                var bitmapImage = BitmapSourceToBitmapImage(bitmapSource);
+                                if (bitmapImage != null)
+                                {
+                                    AddImageToPreview(bitmapImage);
+                                    handled = true;
+                                }
+                            }
+                        }
+                        else if (dataObject.GetDataPresent(SW.DataFormats.FileDrop))
+                        {
+                            var files = dataObject.GetData(SW.DataFormats.FileDrop) as string[];
+                            if (files != null)
+                            {
+                                bool hasImage = false;
+                                foreach (var file in files)
+                                {
+                                    if (IsImageFile(file))
+                                    {
+                                        LoadImageFromFile(file);
+                                        hasImage = true;
+                                    }
+                                }
+                                handled = hasImage;
+                            }
+                        }
+                        
+                        if (handled)
+                        {
+                            e.Handled = true;
+                        }
+                    }
+                }
+                catch (Exception ex)
+                {
+                    Console.WriteLine($"Paste error: {ex.Message}");
+                }
+            }
+        }
+
+        private SWI.BitmapImage? BitmapSourceToBitmapImage(SWI.BitmapSource bitmapSource)
+        {
+            var stream = new MemoryStream();
+            var encoder = new SWI.PngBitmapEncoder();
+            encoder.Frames.Add(SWI.BitmapFrame.Create(bitmapSource));
+            encoder.Save(stream);
+            stream.Position = 0;
+            
+            var bitmapImage = new SWI.BitmapImage();
+            bitmapImage.BeginInit();
+            bitmapImage.StreamSource = stream;
+            bitmapImage.CacheOption = SWI.BitmapCacheOption.OnLoad;
+            bitmapImage.EndInit();
+            bitmapImage.Freeze();
+            return bitmapImage;
+        }
+
+        private bool IsImageFile(string filePath)
+        {
+            string[] extensions = new[] { ".jpg", ".jpeg", ".png", ".bmp", ".gif" };
+            string ext = Path.GetExtension(filePath).ToLowerInvariant();
+            return extensions.Contains(ext);
+        }
+
+        private void LoadImageFromFile(string filePath)
+        {
+            try
+            {
+                var bitmap = new SWI.BitmapImage();
+                bitmap.BeginInit();
+                bitmap.UriSource = new Uri(filePath, UriKind.Absolute);
+                bitmap.CacheOption = SWI.BitmapCacheOption.OnLoad;
+                bitmap.EndInit();
+                bitmap.Freeze();
+                AddImageToPreview(bitmap);
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Error loading image: {ex.Message}");
+            }
+        }
+
+        private void AddImageToPreview(SWI.BitmapImage bitmap)
+        {
+            using (var memoryStream = new MemoryStream())
+            {
+                var encoder = new SWI.PngBitmapEncoder();
+                encoder.Frames.Add(SWI.BitmapFrame.Create(bitmap));
+                encoder.Save(memoryStream);
+                byte[] imageBytes = memoryStream.ToArray();
+                string base64 = Convert.ToBase64String(imageBytes);
+
+                _previewImages.Add(bitmap);
+                _previewImageBase64List.Add(base64);
+                ImagePreviewPanel.Visibility = _previewImages.Count > 0 ? SW.Visibility.Visible : SW.Visibility.Collapsed;
+            }
+        }
+
+        private void AddImageButton_Click(object sender, SW.RoutedEventArgs e)
+        {
+            var openFileDialog = new Microsoft.Win32.OpenFileDialog
+            {
+                Filter = "图片文件|*.jpg;*.jpeg;*.png;*.bmp;*.gif|所有文件|*.*",
+                Multiselect = true
+            };
+
+            bool? result = openFileDialog.ShowDialog();
+            if (result == true)
+            {
+                foreach (string fileName in openFileDialog.FileNames)
+                {
+                    try
+                    {
+                        var bitmapImage = new SWI.BitmapImage();
+                        bitmapImage.BeginInit();
+                        bitmapImage.UriSource = new Uri(fileName);
+                        bitmapImage.CacheOption = SWI.BitmapCacheOption.OnLoad;
+                        bitmapImage.EndInit();
+                        bitmapImage.Freeze();
+                        AddImageToPreview(bitmapImage);
+                    }
+                    catch (Exception ex)
+                    {
+                        var messageBox = new Views.MessageBoxWindow("错误", $"无法加载图片: {ex.Message}");
+                        messageBox.Owner = SW.Window.GetWindow(this);
+                        messageBox.ShowDialog();
+                    }
+                }
+            }
+        }
+
+        private void PreviewImage_MouseLeftButtonDown(object sender, SWInput.MouseButtonEventArgs e)
+        {
+            if (sender is SWC.Image image && image.Tag is SWI.BitmapImage bitmapImage)
+            {
+                var viewer = new Views.ImageViewerWindow(bitmapImage);
+                viewer.Owner = SW.Window.GetWindow(this);
+                viewer.Topmost = true;
+                viewer.Show();
+            }
+            e.Handled = true;
+        }
+
+        private void RemoveImage_Click(object sender, SW.RoutedEventArgs e)
+        {
+            if (sender is SWC.Button button && button.Tag is SWI.BitmapImage image)
+            {
+                int index = _previewImages.IndexOf(image);
+                if (index >= 0)
+                {
+                    _previewImages.RemoveAt(index);
+                    _previewImageBase64List.RemoveAt(index);
+                    ImagePreviewPanel.Visibility = _previewImages.Count > 0 ? SW.Visibility.Visible : SW.Visibility.Collapsed;
+                }
+            }
+        }
+
+
+
+        private void LoadSettings()
+        {
+            var settings = SettingsManager.Current;
+            WhiteNoiseButton.Visibility = settings.WhiteNoiseEnabled ? SW.Visibility.Visible : SW.Visibility.Collapsed;
+
+            // Initialize countdown default time
+            if (!_timerService.IsStopwatchMode && !_timerService.IsActive)
+            {
+                int defaultDays = settings.CountdownDefaultDays;
+                int defaultHours = settings.CountdownDefaultHours;
+                int defaultMinutes = settings.CountdownDefaultMinutes;
+                int defaultSeconds = settings.CountdownDefaultSeconds;
+
+                Days1.SetValueWithoutAnimation(defaultDays / 100);
+                Days2.SetValueWithoutAnimation((defaultDays / 10) % 10);
+                Days3.SetValueWithoutAnimation(defaultDays % 10);
+                Hours1.SetValueWithoutAnimation(defaultHours / 10);
+                Hours2.SetValueWithoutAnimation(defaultHours % 10);
+                Minutes1.SetValueWithoutAnimation(defaultMinutes / 10);
+                Minutes2.SetValueWithoutAnimation(defaultMinutes % 10);
+                Seconds1.SetValueWithoutAnimation(defaultSeconds / 10);
+                Seconds2.SetValueWithoutAnimation(defaultSeconds % 10);
+                UpdateFromScrollers();
+            }
+        }
+
+        /// <summary>从设置管理器同步更新控件状态。</summary>
+        public void UpdateSettings()
+        {
+            var settings = SettingsManager.Current;
+            WhiteNoiseButton.Visibility = settings.WhiteNoiseEnabled ? SW.Visibility.Visible : SW.Visibility.Collapsed;
+
+            // Update countdown default time if in countdown mode
+            if (!_timerService.IsStopwatchMode && !_timerService.IsActive)
+            {
+                int defaultDays = settings.CountdownDefaultDays;
+                int defaultHours = settings.CountdownDefaultHours;
+                int defaultMinutes = settings.CountdownDefaultMinutes;
+                int defaultSeconds = settings.CountdownDefaultSeconds;
+
+                Days1.SetValueWithoutAnimation(defaultDays / 100);
+                Days2.SetValueWithoutAnimation((defaultDays / 10) % 10);
+                Days3.SetValueWithoutAnimation(defaultDays % 10);
+                Hours1.SetValueWithoutAnimation(defaultHours / 10);
+                Hours2.SetValueWithoutAnimation(defaultHours % 10);
+                Minutes1.SetValueWithoutAnimation(defaultMinutes / 10);
+                Minutes2.SetValueWithoutAnimation(defaultMinutes % 10);
+                Seconds1.SetValueWithoutAnimation(defaultSeconds / 10);
+                Seconds2.SetValueWithoutAnimation(defaultSeconds % 10);
+                UpdateFromScrollers();
+            }
+        }
+
+        private void InitializeNumberScrollers()
+        {
+            SetScrollersMaxValues();
+
+            Days1.ValueChanged += OnDay1ValueChanged;
+            Days2.ValueChanged += OnDay2ValueChanged;
+            Days3.ValueChanged += OnDay3ValueChanged;
+            Hours1.ValueChanged += OnHour1ValueChanged;
+            Hours2.ValueChanged += OnHour2ValueChanged;
+            Minutes1.ValueChanged += OnMinute1ValueChanged;
+            Minutes2.ValueChanged += OnMinute2ValueChanged;
+            Seconds1.ValueChanged += OnSecond1ValueChanged;
+            Seconds2.ValueChanged += OnSecond2ValueChanged;
+        }
+
+        private void SetScrollersMaxValues()
+        {
+            Hours1.MaxValue = 2;
+            Hours2.MaxValue = Hours1.CurrentValue == 2 ? 3 : 9;
+            Minutes1.MaxValue = 5;
+            Seconds1.MaxValue = 5;
+        }
+
+        private void OnDay1ValueChanged(object sender, int value)
+        {
+            if (!_timerService.IsActive)
+                UpdateFromScrollers();
+        }
+
+        private void OnDay2ValueChanged(object sender, int value)
+        {
+            if (!_timerService.IsActive)
+                UpdateFromScrollers();
+        }
+
+        private void OnDay3ValueChanged(object sender, int value)
+        {
+            if (!_timerService.IsActive)
+                UpdateFromScrollers();
+        }
+
+        private void OnHour1ValueChanged(object sender, int value)
+        {
+            if (!_timerService.IsActive)
+            {
+                SetScrollersMaxValues();
+                UpdateFromScrollers();
+            }
+        }
+
+        private void OnHour2ValueChanged(object sender, int value)
+        {
+            if (!_timerService.IsActive)
+                UpdateFromScrollers();
+        }
+
+        private void OnMinute1ValueChanged(object sender, int value)
+        {
+            if (!_timerService.IsActive)
+                UpdateFromScrollers();
+        }
+
+        private void OnMinute2ValueChanged(object sender, int value)
+        {
+            if (!_timerService.IsActive)
+                UpdateFromScrollers();
+        }
+
+        private void OnSecond1ValueChanged(object sender, int value)
+        {
+            if (!_timerService.IsActive)
+                UpdateFromScrollers();
+        }
+
+        private void OnSecond2ValueChanged(object sender, int value)
+        {
+            if (!_timerService.IsActive)
+                UpdateFromScrollers();
+        }
+
+        private void UpdateFromScrollers()
+        {
+            int newDays = Days1.CurrentValue * 100 + Days2.CurrentValue * 10 + Days3.CurrentValue;
+            int newHours = Hours1.CurrentValue * 10 + Hours2.CurrentValue;
+            int newMinutes = Minutes1.CurrentValue * 10 + Minutes2.CurrentValue;
+            int newSeconds = Seconds1.CurrentValue * 10 + Seconds2.CurrentValue;
+
+            newHours = Math.Min(newHours, 23);
+            newMinutes = Math.Min(newMinutes, 59);
+            newSeconds = Math.Min(newSeconds, 59);
+
+            _timerService.SetCurrentTime(newDays, newHours, newMinutes, newSeconds);
+
+            if (!_timerService.IsStopwatchMode)
+            {
+                _timerService.SetCountdownTime(newDays, newHours, newMinutes, newSeconds);
+            }
+
+            int h1 = newHours / 10;
+            int h2 = newHours % 10;
+            int m1 = newMinutes / 10;
+            int m2 = newMinutes % 10;
+            int s1 = newSeconds / 10;
+            int s2 = newSeconds % 10;
+
+            if (Hours1.CurrentValue != h1) Hours1.SetValueWithoutAnimation(h1);
+            if (Hours2.CurrentValue != h2) Hours2.SetValueWithoutAnimation(h2);
+            if (Minutes1.CurrentValue != m1) Minutes1.SetValueWithoutAnimation(m1);
+            if (Minutes2.CurrentValue != m2) Minutes2.SetValueWithoutAnimation(m2);
+            if (Seconds1.CurrentValue != s1) Seconds1.SetValueWithoutAnimation(s1);
+            if (Seconds2.CurrentValue != s2) Seconds2.SetValueWithoutAnimation(s2);
+        }
+
+        private void UpdateTimerDisplay()
+        {
+            int days = _timerService.Days;
+            int hours = _timerService.Hours;
+            int minutes = _timerService.Minutes;
+            int seconds = _timerService.Seconds;
+
+            int d1 = days / 100;
+            int d2 = (days / 10) % 10;
+            int d3 = days % 10;
+            int h1 = hours / 10;
+            int h2 = hours % 10;
+            int m1 = minutes / 10;
+            int m2 = minutes % 10;
+            int s1 = seconds / 10;
+            int s2 = seconds % 10;
+
+            if (Days1.CurrentValue != d1) Days1.CurrentValue = d1;
+            if (Days2.CurrentValue != d2) Days2.CurrentValue = d2;
+            if (Days3.CurrentValue != d3) Days3.CurrentValue = d3;
+            if (Hours1.CurrentValue != h1) Hours1.CurrentValue = h1;
+            if (Hours2.CurrentValue != h2) Hours2.CurrentValue = h2;
+            if (Minutes1.CurrentValue != m1) Minutes1.CurrentValue = m1;
+            if (Minutes2.CurrentValue != m2) Minutes2.CurrentValue = m2;
+            if (Seconds1.CurrentValue != s1) Seconds1.CurrentValue = s1;
+            if (Seconds2.CurrentValue != s2) Seconds2.CurrentValue = s2;
+        }
+
+        private void UpdatePlayPauseIcon()
+        {
+            if (_timerService.IsActive)
+            {
+                PlayPauseIcon.Data = SWM.Geometry.Parse("M8,4V20H10V4H8M14,4V20H16V4H14Z");
+            }
+            else
+            {
+                PlayPauseIcon.Data = SWM.Geometry.Parse("M8,5.14V19.14L19,12.14L8,5.14Z");
+            }
+        }
+
+        private void UpdateModeButtons()
+        {
+            if (_timerService.IsStopwatchMode)
+            {
+                StopwatchButton.Background = BlueBrush;
+                StopwatchButton.Foreground = WhiteBrush;
+                CountdownButton.Background = WhiteBrush;
+                CountdownButton.Foreground = Gray600Brush;
+                SessionText.Text = "Stopwatch";
+            }
+            else
+            {
+                CountdownButton.Background = BlueBrush;
+                CountdownButton.Foreground = WhiteBrush;
+                StopwatchButton.Background = WhiteBrush;
+                StopwatchButton.Foreground = Gray600Brush;
+                SessionText.Text = "Countdown";
+            }
+        }
+
+        private void UpdateGoalDisplay()
+        {
+            if (_timerService.CurrentGoal != null && _timerService.CurrentGoal.Id != "global-goal")
+            {
+                CurrentGoalText.Text = _timerService.CurrentGoal.Title;
+                CurrentGoalText.Visibility = SW.Visibility.Visible;
+            }
+            else
+            {
+                CurrentGoalText.Text = "";
+                CurrentGoalText.Visibility = SW.Visibility.Hidden;
+            }
+        }
+
+        private void SetScrollersEditable(bool editable)
+        {
+            Days1.IsEditable = editable;
+            Days2.IsEditable = editable;
+            Days3.IsEditable = editable;
+            Hours1.IsEditable = editable;
+            Hours2.IsEditable = editable;
+            Minutes1.IsEditable = editable;
+            Minutes2.IsEditable = editable;
+            Seconds1.IsEditable = editable;
+            Seconds2.IsEditable = editable;
+        }
+
+        private void StopwatchButton_Click(object sender, SW.RoutedEventArgs e)
+        {
+            _timerService.SwitchToStopwatch();
+            SetScrollersMaxValues();
+
+            Days1.SetValueWithoutAnimation(0);
+            Days2.SetValueWithoutAnimation(0);
+            Days3.SetValueWithoutAnimation(0);
+            Hours1.SetValueWithoutAnimation(0);
+            Hours2.SetValueWithoutAnimation(0);
+            Minutes1.SetValueWithoutAnimation(0);
+            Minutes2.SetValueWithoutAnimation(0);
+            Seconds1.SetValueWithoutAnimation(0);
+            Seconds2.SetValueWithoutAnimation(0);
+            SetScrollersEditable(true);
+
+            UpdateModeButtons();
+            UpdateTimerDisplay();
+        }
+
+        private void CountdownButton_Click(object sender, SW.RoutedEventArgs e)
+        {
+            var settings = SettingsManager.Current;
+            _timerService.SwitchToCountdown();
+            SetScrollersMaxValues();
+
+            int defaultDays = settings.CountdownDefaultDays;
+            int defaultHours = settings.CountdownDefaultHours;
+            int defaultMinutes = settings.CountdownDefaultMinutes;
+            int defaultSeconds = settings.CountdownDefaultSeconds;
+
+            Days1.SetValueWithoutAnimation(defaultDays / 100);
+            Days2.SetValueWithoutAnimation((defaultDays / 10) % 10);
+            Days3.SetValueWithoutAnimation(defaultDays % 10);
+            Hours1.SetValueWithoutAnimation(defaultHours / 10);
+            Hours2.SetValueWithoutAnimation(defaultHours % 10);
+            Minutes1.SetValueWithoutAnimation(defaultMinutes / 10);
+            Minutes2.SetValueWithoutAnimation(defaultMinutes % 10);
+            Seconds1.SetValueWithoutAnimation(defaultSeconds / 10);
+            Seconds2.SetValueWithoutAnimation(defaultSeconds % 10);
+            SetScrollersEditable(true);
+
+            UpdateModeButtons();
+            UpdateTimerDisplay();
+        }
+
+        private void ResetButton_Click(object sender, SW.RoutedEventArgs e)
+        {
+            _timerService.ResetTimer();
+            SetScrollersEditable(true);
+            SetScrollersMaxValues();
+
+            int days = _timerService.Days;
+            int hours = _timerService.Hours;
+            int minutes = _timerService.Minutes;
+            int seconds = _timerService.Seconds;
+
+            Days1.SetValueWithoutAnimation(days / 100);
+            Days2.SetValueWithoutAnimation((days / 10) % 10);
+            Days3.SetValueWithoutAnimation(days % 10);
+            Hours1.SetValueWithoutAnimation(hours / 10);
+            Hours2.SetValueWithoutAnimation(hours % 10);
+            Minutes1.SetValueWithoutAnimation(minutes / 10);
+            Minutes2.SetValueWithoutAnimation(minutes % 10);
+            Seconds1.SetValueWithoutAnimation(seconds / 10);
+            Seconds2.SetValueWithoutAnimation(seconds % 10);
+        }
+
+        private void PlayPauseButton_Click(object sender, SW.RoutedEventArgs e)
+        {
+            if (!_timerService.IsActive && _timerService.CurrentGoal != null && _timerService.CurrentGoal.Id != "global-goal")
+            {
+                string? conflictingTimer = GoalTimerManager.Instance.GetActiveAndRunningTimerForGoal(_timerService.CurrentGoal.Id);
+                if (conflictingTimer != null && conflictingTimer != GoalTimerManager.TimerTypeNormal)
+                {
+                    var messageBox = new Views.MessageBoxWindow("提示", "番茄钟正在为同一目标计时，请先停止番茄钟后再开始计时器。");
+                    messageBox.Owner = SW.Window.GetWindow(this);
+                    messageBox.ShowDialog();
+                    return;
+                }
+            }
+            _timerService.TogglePlayPause();
+        }
+
+        private void StopButton_Click(object sender, SW.RoutedEventArgs e)
+        {
+            _timerService.StopTimerWithRecord();
+            SetScrollersEditable(true);
+        }
+
+        private void ModeSwitchButton_Click(object sender, SW.RoutedEventArgs e)
+        {
+            var mainWindow = SW.Window.GetWindow(this) as MainWindow;
+            mainWindow?.SwitchTimerMode();
+        }
+
+        private void SelectGoalButton_Click(object sender, SW.RoutedEventArgs e)
+        {
+            var menu = new SWC.ContextMenu();
+            AddGoalMenuItems(menu, null);
+            menu.IsOpen = true;
+        }
+
+        private void AddGoalMenuItems(SWC.ItemsControl parentContainer, Goal parentGoal)
+        {
+            if (GoalsPage.Goals.Count == 0)
+            {
+                var goal1 = new Goal("学习 C# 编程");
+                goal1.AddChild(new Goal("学习基础语法"));
+                goal1.AddChild(new Goal("学习面向对象编程"));
+                goal1.AddChild(new Goal("学习WPF框架"));
+
+                var goal2 = new Goal("阅读技术书籍");
+                goal2.AddChild(new Goal("阅读《C# 本质论》"));
+                goal2.AddChild(new Goal("阅读《WPF 编程指南》"));
+
+                var goal3 = new Goal("完成 WPF 项目");
+                goal3.Complete();
+
+                var goal4 = new Goal("减肥计划");
+                goal4.Fail();
+
+                GoalsPage.Goals.Add(goal1);
+                GoalsPage.Goals.Add(goal2);
+                GoalsPage.Goals.Add(goal3);
+                GoalsPage.Goals.Add(goal4);
+            }
+
+            var goals = parentGoal == null ?
+                GoalsPage.Goals.Where(g => g.Parent == null &&
+                                          g.Status != GoalStatus.Completed &&
+                                          g.Status != GoalStatus.Failed &&
+                                          g.Status != GoalStatus.Pending &&
+                                          g.Id != "global-goal").ToList() :
+                parentGoal.Children.Where(g => g.Status != GoalStatus.Completed &&
+                                              g.Status != GoalStatus.Failed &&
+                                              g.Status != GoalStatus.Pending &&
+                                              g.Id != "global-goal").ToList();
+
+            if (goals.Count == 0)
+            {
+                var noGoalsItem = new SWC.MenuItem();
+                noGoalsItem.Header = "没有正在进行的目标";
+                noGoalsItem.IsEnabled = false;
+                parentContainer.Items.Add(noGoalsItem);
+                return;
+            }
+
+            var titleCount = GoalDisplayHelper.GetTitleCount(GoalsPage.Goals);
+
+            foreach (var goal in goals)
+            {
+                var menuItem = new SWC.MenuItem();
+                menuItem.Header = GoalDisplayHelper.GetGoalDisplayName(goal, titleCount);
+                menuItem.Tag = goal;
+
+                menuItem.PreviewMouseLeftButtonDown += (sender, e) =>
+                {
+                    var selectedGoal = (Goal)(sender as SWC.MenuItem).Tag;
+                    SelectGoal(selectedGoal);
+                };
+
+                parentContainer.Items.Add(menuItem);
+
+                var childGoals = goal.Children.Where(g => g.Status != GoalStatus.Completed &&
+                                                         g.Status != GoalStatus.Failed &&
+                                                         g.Status != GoalStatus.Pending).ToList();
+                if (childGoals.Count > 0)
+                {
+                    AddGoalMenuItems(menuItem, goal);
+                }
+            }
+        }
+
+        private void SelectGoal(Goal selectedGoal)
+        {
+            CurrentGoal = selectedGoal;
+            _timerService.CurrentGoal = selectedGoal;
+
+            _timerService.StopTimer();
+            SetScrollersEditable(true);
+
+            if (_timerService.IsStopwatchMode && selectedGoal.Id != "global-goal")
+            {
+                int totalSeconds = selectedGoal.TotalElapsedSeconds;
+                int days = totalSeconds / 86400;
+                int remainingSeconds = totalSeconds % 86400;
+                int hours = remainingSeconds / 3600;
+                remainingSeconds = remainingSeconds % 3600;
+                int minutes = remainingSeconds / 60;
+                int seconds = remainingSeconds % 60;
+
+                _timerService.SetCurrentTime(days, hours, minutes, seconds);
+
+                SetScrollersMaxValues();
+                Days1.SetValueWithoutAnimation(days / 100);
+                Days2.SetValueWithoutAnimation((days / 10) % 10);
+                Days3.SetValueWithoutAnimation(days % 10);
+                Hours1.SetValueWithoutAnimation(hours / 10);
+                Hours2.SetValueWithoutAnimation(hours % 10);
+                Minutes1.SetValueWithoutAnimation(minutes / 10);
+                Minutes2.SetValueWithoutAnimation(minutes % 10);
+                Seconds1.SetValueWithoutAnimation(seconds / 10);
+                Seconds2.SetValueWithoutAnimation(seconds % 10);
+            }
+            else
+            {
+                // 全局目标在秒表模式从0开始
+                if (_timerService.IsStopwatchMode && selectedGoal.Id == "global-goal")
+                {
+                    _timerService.SetCurrentTime(0, 0, 0, 0);
+                }
+                UpdateTimerDisplay();
+            }
+
+            UpdateGoalDisplay();
+        }
+
+        private void ClearGoalButton_Click(object sender, SW.RoutedEventArgs e)
+        {
+            // 清除目标时设置为全局目标，但不显示
+            CurrentGoal = GoalsPage.GlobalGoal;
+            _timerService.CurrentGoal = GoalsPage.GlobalGoal;
+        }
+
+        private void UpdateWhiteNoiseIcon()
+        {
+            var settings = SettingsManager.Current;
+            if (settings.WhiteNoiseManager.IsPlaying)
+            {
+                WhiteNoiseIcon.Fill = new SWM.SolidColorBrush(SWM.Color.FromRgb(16, 185, 129));
+                WhiteNoiseButton.ToolTip = "暂停白噪音";
+            }
+            else
+            {
+                WhiteNoiseIcon.Fill = (SWM.Brush)FindResource("TextSecondary");
+                WhiteNoiseButton.ToolTip = "播放白噪音";
+            }
+        }
+
+        private void WhiteNoiseButton_Click(object sender, SW.RoutedEventArgs e)
+        {
+            var settings = SettingsManager.Current;
+            if (settings.WhiteNoiseEnabled)
+            {
+                if (settings.WhiteNoiseManager.IsPlaying)
+                {
+                    settings.WhiteNoiseManager.Stop();
+                }
+                else
+                {
+                    settings.WhiteNoiseManager.Play();
+                }
+                UpdateWhiteNoiseIcon();
+            }
+        }
+
+        private void WhiteNoiseManager_PropertyChanged(object sender, System.ComponentModel.PropertyChangedEventArgs e)
+        {
+            if (e.PropertyName == nameof(Services.Audio.WhiteNoiseManager.IsPlaying))
+            {
+                UpdateWhiteNoiseIcon();
+            }
+        }
+
+        private async void AddGoalButton_Click(object sender, SW.RoutedEventArgs e)
+        {
+            try
+            {
+                var addGoalWindow = new Views.AddGoalWindow();
+                addGoalWindow.Owner = SW.Window.GetWindow(this);
+                addGoalWindow.GoalAdded += async (s, args) =>
+                {
+                    var newGoal = new Goal(addGoalWindow.GoalTitle, addGoalWindow.GoalDescription);
+                    if (CurrentGoal != null && CurrentGoal.Id != "global-goal")
+                    {
+                        CurrentGoal.AddChild(newGoal);
+                    }
+                    else
+                    {
+                        GoalsPage.Goals.Add(newGoal);
+                    }
+                    SelectGoal(newGoal);
+                    await DataStorageService.SaveGoalsAsync(GoalsPage.Goals);
+                };
+                addGoalWindow.Show();
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"Error in AddGoalButton_Click: {ex.Message}");
+            }
+        }
+    }
+}

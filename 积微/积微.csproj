@@ -1,0 +1,30 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+    <PropertyGroup>
+        <OutputType>WinExe</OutputType>
+        <TargetFramework>net8.0-windows</TargetFramework>
+        <Nullable>enable</Nullable>
+        <ImplicitUsings>enable</ImplicitUsings>
+        <UseWPF>true</UseWPF>
+        <UseWindowsForms>true</UseWindowsForms>
+        <ApplicationIcon>Resources/icon/番茄钟.ico</ApplicationIcon>
+        <AssemblyName>积微</AssemblyName>
+        <RootNamespace>积微</RootNamespace>
+        <Product>积微</Product>
+        <PublishSingleFile>false</PublishSingleFile>
+        <SelfContained>false</SelfContained>
+        <PublishReadyToRun>false</PublishReadyToRun>
+        <DebugSymbols>false</DebugSymbols>
+        <DebugType>none</DebugType>
+    </PropertyGroup>
+
+    <ItemGroup>
+        <Content Include="Resources\audioCover\**\*" CopyToOutputDirectory="PreserveNewest" />
+        <None Include="Resources\audio\**\*" CopyToOutputDirectory="PreserveNewest" />
+    </ItemGroup>
+
+    <ItemGroup>
+        <Resource Include="Resources\icon\**\*" />
+    </ItemGroup>
+
+</Project>

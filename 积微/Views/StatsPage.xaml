@@ -1,0 +1,497 @@
+<UserControl x:Class="积微.Views.StatsPage"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             mc:Ignorable="d"
+             d:DesignHeight="900"
+             d:DesignWidth="720">
+    <UserControl.Resources>
+        <Style x:Key="InteractiveStatCard" TargetType="Border">
+            <Setter Property="CornerRadius" Value="12"/>
+            <Setter Property="Padding" Value="14"/>
+            <Setter Property="Background" Value="{DynamicResource CardBackground}"/>
+            <Setter Property="Effect">
+                <Setter.Value>
+                    <DropShadowEffect Color="#000000" Opacity="0.04" BlurRadius="12" ShadowDepth="2"/>
+                </Setter.Value>
+            </Setter>
+            <Setter Property="RenderTransform">
+                <Setter.Value>
+                    <TranslateTransform Y="0"/>
+                </Setter.Value>
+            </Setter>
+            <Style.Triggers>
+                <Trigger Property="IsMouseOver" Value="True">
+                    <Trigger.EnterActions>
+                        <BeginStoryboard>
+                            <Storyboard>
+                                <DoubleAnimation Storyboard.TargetProperty="(UIElement.Effect).(DropShadowEffect.Opacity)"
+                                               To="0.08" Duration="0:0:0.2"/>
+                                <DoubleAnimation Storyboard.TargetProperty="(UIElement.Effect).(DropShadowEffect.BlurRadius)"
+                                               To="20" Duration="0:0:0.2"/>
+                                <DoubleAnimation Storyboard.TargetProperty="(UIElement.Effect).(DropShadowEffect.ShadowDepth)"
+                                               To="4" Duration="0:0:0.2"/>
+                                <DoubleAnimation Storyboard.TargetProperty="(UIElement.RenderTransform).(TranslateTransform.Y)"
+                                               To="-2" Duration="0:0:0.2"/>
+                            </Storyboard>
+                        </BeginStoryboard>
+                    </Trigger.EnterActions>
+                    <Trigger.ExitActions>
+                        <BeginStoryboard>
+                            <Storyboard>
+                                <DoubleAnimation Storyboard.TargetProperty="(UIElement.Effect).(DropShadowEffect.Opacity)"
+                                               To="0.04" Duration="0:0:0.2"/>
+                                <DoubleAnimation Storyboard.TargetProperty="(UIElement.Effect).(DropShadowEffect.BlurRadius)"
+                                               To="12" Duration="0:0:0.2"/>
+                                <DoubleAnimation Storyboard.TargetProperty="(UIElement.Effect).(DropShadowEffect.ShadowDepth)"
+                                               To="2" Duration="0:0:0.2"/>
+                                <DoubleAnimation Storyboard.TargetProperty="(UIElement.RenderTransform).(TranslateTransform.Y)"
+                                               To="0" Duration="0:0:0.2"/>
+                            </Storyboard>
+                        </BeginStoryboard>
+                    </Trigger.ExitActions>
+                </Trigger>
+            </Style.Triggers>
+        </Style>
+
+        <Style x:Key="CalendarCellStyle" TargetType="Border">
+            <Setter Property="Background" Value="{DynamicResource HoverColor}"/>
+            <Setter Property="CornerRadius" Value="4"/>
+            <Setter Property="Margin" Value="2"/>
+            <Setter Property="BorderBrush" Value="Transparent"/>
+            <Setter Property="BorderThickness" Value="0"/>
+            <Setter Property="RenderTransform">
+                <Setter.Value>
+                    <ScaleTransform ScaleX="1" ScaleY="1"/>
+                </Setter.Value>
+            </Setter>
+            <Style.Triggers>
+                <Trigger Property="IsMouseOver" Value="True">
+                    <Trigger.EnterActions>
+                        <BeginStoryboard>
+                            <Storyboard>
+                                <DoubleAnimation Storyboard.TargetProperty="(UIElement.RenderTransform).(ScaleTransform.ScaleX)"
+                                               To="1.2" Duration="0:0:0.15"/>
+                                <DoubleAnimation Storyboard.TargetProperty="(UIElement.RenderTransform).(ScaleTransform.ScaleY)"
+                                               To="1.2" Duration="0:0:0.15"/>
+                            </Storyboard>
+                        </BeginStoryboard>
+                    </Trigger.EnterActions>
+                    <Trigger.ExitActions>
+                        <BeginStoryboard>
+                            <Storyboard>
+                                <DoubleAnimation Storyboard.TargetProperty="(UIElement.RenderTransform).(ScaleTransform.ScaleX)"
+                                               To="1" Duration="0:0:0.15"/>
+                                <DoubleAnimation Storyboard.TargetProperty="(UIElement.RenderTransform).(ScaleTransform.ScaleY)"
+                                               To="1" Duration="0:0:0.15"/>
+                            </Storyboard>
+                        </BeginStoryboard>
+                    </Trigger.ExitActions>
+                </Trigger>
+            </Style.Triggers>
+        </Style>
+
+        <Style x:Key="ThinScrollBar" TargetType="ScrollBar">
+            <Setter Property="Width" Value="6"/>
+            <Setter Property="MinWidth" Value="0"/>
+            <Setter Property="MaxWidth" Value="6"/>
+            <Setter Property="Margin" Value="0"/>
+            <Setter Property="Padding" Value="0"/>
+            <Setter Property="Background" Value="Transparent"/>
+            <Setter Property="BorderThickness" Value="0"/>
+            <Style.Triggers>
+                <Trigger Property="IsMouseOver" Value="True">
+                    <Setter Property="Width" Value="10"/>
+                    <Setter Property="MaxWidth" Value="10"/>
+                </Trigger>
+            </Style.Triggers>
+        </Style>
+
+        <Style x:Key="InteractiveButton" TargetType="Button">
+            <Setter Property="FocusVisualStyle" Value="{x:Null}"/>
+            <Setter Property="RenderTransform">
+                <Setter.Value>
+                    <ScaleTransform ScaleX="1" ScaleY="1"/>
+                </Setter.Value>
+            </Setter>
+            <Style.Triggers>
+                <Trigger Property="IsMouseOver" Value="True">
+                    <Trigger.EnterActions>
+                        <BeginStoryboard>
+                            <Storyboard>
+                                <DoubleAnimation Storyboard.TargetProperty="(UIElement.RenderTransform).(ScaleTransform.ScaleX)" 
+                                               To="1.05" Duration="0:0:0.1"/>
+                                <DoubleAnimation Storyboard.TargetProperty="(UIElement.RenderTransform).(ScaleTransform.ScaleY)" 
+                                               To="1.05" Duration="0:0:0.1"/>
+                            </Storyboard>
+                        </BeginStoryboard>
+                    </Trigger.EnterActions>
+                    <Trigger.ExitActions>
+                        <BeginStoryboard>
+                            <Storyboard>
+                                <DoubleAnimation Storyboard.TargetProperty="(UIElement.RenderTransform).(ScaleTransform.ScaleX)" 
+                                               To="1" Duration="0:0:0.1"/>
+                                <DoubleAnimation Storyboard.TargetProperty="(UIElement.RenderTransform).(ScaleTransform.ScaleY)" 
+                                               To="1" Duration="0:0:0.1"/>
+                            </Storyboard>
+                        </BeginStoryboard>
+                    </Trigger.ExitActions>
+                </Trigger>
+            </Style.Triggers>
+        </Style>
+    </UserControl.Resources>
+    <Grid Margin="20" Background="{DynamicResource Background}">
+        <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
+            <ScrollViewer.Resources>
+                <Style x:Key="StatCardStyle" TargetType="Border">
+                    <Setter Property="CornerRadius" Value="12"/>
+                    <Setter Property="Padding" Value="14"/>
+                    <Setter Property="Background" Value="White"/>
+                    <Setter Property="Effect">
+                        <Setter.Value>
+                            <DropShadowEffect Color="#000000" Opacity="0.04" BlurRadius="12" ShadowDepth="2"/>
+                        </Setter.Value>
+                    </Setter>
+                </Style>
+            </ScrollViewer.Resources>
+            <ScrollViewer.Style>
+                <Style TargetType="ScrollViewer">
+                    <Setter Property="Template">
+                        <Setter.Value>
+                            <ControlTemplate TargetType="ScrollViewer">
+                                <Grid>
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="*"/>
+                                        <ColumnDefinition Width="Auto"/>
+                                    </Grid.ColumnDefinitions>
+                                    <ScrollContentPresenter Grid.Column="0" Content="{TemplateBinding Content}"/>
+                                    <ScrollBar x:Name="PART_VerticalScrollBar" Grid.Column="1"
+                                               Orientation="Vertical"
+                                               Value="{TemplateBinding VerticalOffset}"
+                                               Maximum="{TemplateBinding ScrollableHeight}"
+                                               ViewportSize="{TemplateBinding ViewportHeight}"
+                                               Visibility="{TemplateBinding ComputedVerticalScrollBarVisibility}"
+                                               Style="{StaticResource ThinScrollBar}"/>
+                                </Grid>
+                            </ControlTemplate>
+                        </Setter.Value>
+                    </Setter>
+                </Style>
+            </ScrollViewer.Style>
+            <StackPanel HorizontalAlignment="Stretch" VerticalAlignment="Top" MaxWidth="640">
+                <TextBlock Text="积土成山，风雨兴焉" FontSize="26" FontWeight="Bold" Foreground="{DynamicResource TextPrimary}" Margin="0,20,0,4" HorizontalAlignment="Center"/>
+                <TextBlock Text="你的每一份努力，都会被记录" FontSize="13" Foreground="{DynamicResource TextTertiary}" Margin="0,0,0,24" HorizontalAlignment="Center"/>
+
+                <StackPanel Orientation="Horizontal" Margin="0,0,0,20" HorizontalAlignment="Center">
+                    <Border Background="{DynamicResource CardBackground}" CornerRadius="10" Padding="14,8">
+                        <TextBlock x:Name="DateLabel" FontSize="15" FontWeight="Medium" Foreground="{DynamicResource TextPrimary}"/>
+                    </Border>
+                    <Button x:Name="ReportButton" Width="36" Height="36" Background="{DynamicResource HoverColor}" Margin="12,0,0,0" Click="ReportButton_Click" Style="{StaticResource InteractiveButton}" ToolTip="报表">
+                        <Button.Template>
+                            <ControlTemplate TargetType="Button">
+                                <Border CornerRadius="8" Background="{TemplateBinding Background}" Padding="6">
+                                    <Path Data="M19,3H5C3.89,3 3,3.89 3,5V19C3,20.1 3.89,21 5,21H19C20.1,21 21,20.1 21,19V5C21,3.89 20.1,3 19,3M19,19H5V5H19V19M17,12H7V10H17V12M14,16H7V14H14V16M14,8H7V6H14V8Z" 
+                                          Fill="{DynamicResource TextPrimary}" Stretch="Uniform"/>
+                                </Border>
+                            </ControlTemplate>
+                        </Button.Template>
+                    </Button>
+                </StackPanel>
+
+                <Grid Margin="0,0,0,16">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="*"/>
+                    </Grid.ColumnDefinitions>
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="Auto"/>
+                    </Grid.RowDefinitions>
+
+                    <Border Grid.Row="0" Grid.Column="0" Style="{StaticResource InteractiveStatCard}" Margin="0,0,6,6">
+                        <StackPanel>
+                            <TextBlock Text="今日番茄" FontSize="12" Foreground="#6B7280" Margin="0,0,0,6"/>
+                            <StackPanel Orientation="Horizontal">
+                                <TextBlock x:Name="TodayPomodoros" Text="0" FontSize="28" FontWeight="Bold" Foreground="#F97316"/>
+                                <TextBlock Text="个" FontSize="13" Foreground="#6B7280" VerticalAlignment="Bottom" Margin="3,0,0,5"/>
+                            </StackPanel>
+                            <TextBlock x:Name="TodayPomodorosChange" Text="暂无数据" FontSize="11" Foreground="#059669" Margin="0,4,0,0"/>
+                        </StackPanel>
+                    </Border>
+
+                    <Border Grid.Row="0" Grid.Column="1" Style="{StaticResource InteractiveStatCard}" Margin="6,0,0,6">
+                        <StackPanel>
+                            <TextBlock Text="专注时长" FontSize="12" Foreground="#6B7280" Margin="0,0,0,6"/>
+                            <StackPanel Orientation="Horizontal">
+                                <TextBlock x:Name="TodayHours" Text="0.0" FontSize="28" FontWeight="Bold" Foreground="#3B82F6"/>
+                                <TextBlock Text="小时" FontSize="13" Foreground="#6B7280" VerticalAlignment="Bottom" Margin="3,0,0,5"/>
+                            </StackPanel>
+                            <TextBlock x:Name="TodayHoursChange" Text="暂无数据" FontSize="11" Foreground="#059669" Margin="0,4,0,0"/>
+                        </StackPanel>
+                    </Border>
+
+                    <Border Grid.Row="1" Grid.Column="0" Style="{StaticResource InteractiveStatCard}" Margin="0,6,6,6">
+                        <StackPanel>
+                            <TextBlock Text="今日碎片" FontSize="12" Foreground="#6B7280" Margin="0,0,0,6"/>
+                            <StackPanel Orientation="Horizontal">
+                                <TextBlock x:Name="TodayFragments" Text="0" FontSize="28" FontWeight="Bold" Foreground="#10B981"/>
+                                <TextBlock Text="个" FontSize="13" Foreground="#6B7280" VerticalAlignment="Bottom" Margin="3,0,0,5"/>
+                            </StackPanel>
+                            <TextBlock x:Name="TodayFragmentsChange" Text="暂无数据" FontSize="11" Foreground="#059669" Margin="0,4,0,0"/>
+                        </StackPanel>
+                    </Border>
+
+                    <Border Grid.Row="1" Grid.Column="1" Style="{StaticResource InteractiveStatCard}" Margin="6,6,0,6">
+                        <StackPanel>
+                            <TextBlock Text="碎片时长" FontSize="12" Foreground="#6B7280" Margin="0,0,0,6"/>
+                            <StackPanel Orientation="Horizontal">
+                                <TextBlock x:Name="TodayFragmentHours" Text="0.0" FontSize="28" FontWeight="Bold" Foreground="#8B5CF6"/>
+                                <TextBlock Text="小时" FontSize="13" Foreground="#6B7280" VerticalAlignment="Bottom" Margin="3,0,0,5"/>
+                            </StackPanel>
+                            <TextBlock x:Name="TodayFragmentHoursChange" Text="暂无数据" FontSize="11" Foreground="#059669" Margin="0,4,0,0"/>
+                        </StackPanel>
+                    </Border>
+
+                    <Border Grid.Row="2" Grid.Column="0" Style="{StaticResource InteractiveStatCard}" Margin="0,6,6,0">
+                        <StackPanel>
+                            <TextBlock Text="连续打卡" FontSize="12" Foreground="#6B7280" Margin="0,0,0,6"/>
+                            <StackPanel Orientation="Horizontal">
+                                <TextBlock x:Name="StreakDays" Text="0" FontSize="28" FontWeight="Bold" Foreground="#EC4899"/>
+                                <TextBlock Text="天" FontSize="13" Foreground="#6B7280" VerticalAlignment="Bottom" Margin="3,0,0,5"/>
+                            </StackPanel>
+                            <TextBlock x:Name="StreakDaysSub" Text="开始你的专注之旅" FontSize="11" Foreground="#6B7280" Margin="0,4,0,0"/>
+                        </StackPanel>
+                    </Border>
+
+                    <Border Grid.Row="2" Grid.Column="1" Style="{StaticResource InteractiveStatCard}" Margin="6,6,0,0">
+                        <StackPanel>
+                            <TextBlock Text="进行目标" FontSize="12" Foreground="#6B7280" Margin="0,0,0,6"/>
+                            <StackPanel Orientation="Horizontal">
+                                <TextBlock x:Name="CompletedGoals" Text="0" FontSize="28" FontWeight="Bold" Foreground="#6366F1"/>
+                                <TextBlock Text="个" FontSize="13" Foreground="#6B7280" VerticalAlignment="Bottom" Margin="3,0,0,5"/>
+                            </StackPanel>
+                            <TextBlock x:Name="CompletedGoalsSub" Text="今日进行" FontSize="11" Foreground="#6B7280" Margin="0,4,0,0"/>
+                        </StackPanel>
+                    </Border>
+                </Grid>
+
+                <Border Style="{StaticResource InteractiveStatCard}" Margin="0,0,0,16">
+                    <StackPanel>
+                        <TextBlock Text="活动日历" FontSize="15" FontWeight="SemiBold" Foreground="{DynamicResource TextPrimary}" Margin="0,0,0,16"/>
+                        <StackPanel Orientation="Horizontal" HorizontalAlignment="Center">
+                            <Grid>
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="60"/>
+                                    <ColumnDefinition Width="36"/>
+                                    <ColumnDefinition Width="36"/>
+                                    <ColumnDefinition Width="36"/>
+                                    <ColumnDefinition Width="36"/>
+                                    <ColumnDefinition Width="36"/>
+                                    <ColumnDefinition Width="36"/>
+                                    <ColumnDefinition Width="36"/>
+                                    <ColumnDefinition Width="36"/>
+                                    <ColumnDefinition Width="36"/>
+                                    <ColumnDefinition Width="36"/>
+                                    <ColumnDefinition Width="36"/>
+                                    <ColumnDefinition Width="36"/>
+                                    <ColumnDefinition Width="60"/>
+                                </Grid.ColumnDefinitions>
+                                <Grid.RowDefinitions>
+                                    <RowDefinition Height="28"/>
+                                    <RowDefinition Height="36"/>
+                                    <RowDefinition Height="36"/>
+                                    <RowDefinition Height="36"/>
+                                    <RowDefinition Height="36"/>
+                                    <RowDefinition Height="36"/>
+                                    <RowDefinition Height="36"/>
+                                    <RowDefinition Height="36"/>
+                                </Grid.RowDefinitions>
+
+                                <TextBlock x:Name="MonthLabel1" Grid.Row="0" Grid.Column="2" Text="" FontSize="12" Foreground="#9CA3AF" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                <TextBlock x:Name="MonthLabel2" Grid.Row="0" Grid.Column="7" Text="" FontSize="12" Foreground="#9CA3AF" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                <TextBlock x:Name="MonthLabel3" Grid.Row="0" Grid.Column="11" Text="" FontSize="12" Foreground="#9CA3AF" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+
+                                <TextBlock Grid.Row="1" Grid.Column="0" Text="日" FontSize="12" Foreground="#9CA3AF" HorizontalAlignment="Right" VerticalAlignment="Center" Margin="0,0,12,0"/>
+                                <TextBlock Grid.Row="2" Grid.Column="0" Text="一" FontSize="12" Foreground="#9CA3AF" HorizontalAlignment="Right" VerticalAlignment="Center" Margin="0,0,12,0"/>
+                                <TextBlock Grid.Row="3" Grid.Column="0" Text="二" FontSize="12" Foreground="#9CA3AF" HorizontalAlignment="Right" VerticalAlignment="Center" Margin="0,0,12,0"/>
+                                <TextBlock Grid.Row="4" Grid.Column="0" Text="三" FontSize="12" Foreground="#9CA3AF" HorizontalAlignment="Right" VerticalAlignment="Center" Margin="0,0,12,0"/>
+                                <TextBlock Grid.Row="5" Grid.Column="0" Text="四" FontSize="12" Foreground="#9CA3AF" HorizontalAlignment="Right" VerticalAlignment="Center" Margin="0,0,12,0"/>
+                                <TextBlock Grid.Row="6" Grid.Column="0" Text="五" FontSize="12" Foreground="#9CA3AF" HorizontalAlignment="Right" VerticalAlignment="Center" Margin="0,0,12,0"/>
+                                <TextBlock Grid.Row="7" Grid.Column="0" Text="六" FontSize="12" Foreground="#9CA3AF" HorizontalAlignment="Right" VerticalAlignment="Center" Margin="0,0,12,0"/>
+
+                                <Border x:Name="Cell_1_1" Grid.Row="1" Grid.Column="1" Style="{StaticResource CalendarCellStyle}"/>
+                                <Border x:Name="Cell_1_2" Grid.Row="1" Grid.Column="2" Style="{StaticResource CalendarCellStyle}"/>
+                                <Border x:Name="Cell_1_3" Grid.Row="1" Grid.Column="3" Style="{StaticResource CalendarCellStyle}"/>
+                                <Border x:Name="Cell_1_4" Grid.Row="1" Grid.Column="4" Style="{StaticResource CalendarCellStyle}"/>
+                                <Border x:Name="Cell_1_5" Grid.Row="1" Grid.Column="5" Style="{StaticResource CalendarCellStyle}"/>
+                                <Border x:Name="Cell_1_6" Grid.Row="1" Grid.Column="6" Style="{StaticResource CalendarCellStyle}"/>
+                                <Border x:Name="Cell_1_7" Grid.Row="1" Grid.Column="7" Style="{StaticResource CalendarCellStyle}"/>
+                                <Border x:Name="Cell_1_8" Grid.Row="1" Grid.Column="8" Style="{StaticResource CalendarCellStyle}"/>
+                                <Border x:Name="Cell_1_9" Grid.Row="1" Grid.Column="9" Style="{StaticResource CalendarCellStyle}"/>
+                                <Border x:Name="Cell_1_10" Grid.Row="1" Grid.Column="10" Style="{StaticResource CalendarCellStyle}"/>
+                                <Border x:Name="Cell_1_11" Grid.Row="1" Grid.Column="11" Style="{StaticResource CalendarCellStyle}"/>
+                                <Border x:Name="Cell_1_12" Grid.Row="1" Grid.Column="12" Style="{StaticResource CalendarCellStyle}"/>
+
+                                <Border x:Name="Cell_2_1" Grid.Row="2" Grid.Column="1" Style="{StaticResource CalendarCellStyle}"/>
+                                <Border x:Name="Cell_2_2" Grid.Row="2" Grid.Column="2" Style="{StaticResource CalendarCellStyle}"/>
+                                <Border x:Name="Cell_2_3" Grid.Row="2" Grid.Column="3" Style="{StaticResource CalendarCellStyle}"/>
+                                <Border x:Name="Cell_2_4" Grid.Row="2" Grid.Column="4" Style="{StaticResource CalendarCellStyle}"/>
+                                <Border x:Name="Cell_2_5" Grid.Row="2" Grid.Column="5" Style="{StaticResource CalendarCellStyle}"/>
+                                <Border x:Name="Cell_2_6" Grid.Row="2" Grid.Column="6" Style="{StaticResource CalendarCellStyle}"/>
+                                <Border x:Name="Cell_2_7" Grid.Row="2" Grid.Column="7" Style="{StaticResource CalendarCellStyle}"/>
+                                <Border x:Name="Cell_2_8" Grid.Row="2" Grid.Column="8" Style="{StaticResource CalendarCellStyle}"/>
+                                <Border x:Name="Cell_2_9" Grid.Row="2" Grid.Column="9" Style="{StaticResource CalendarCellStyle}"/>
+                                <Border x:Name="Cell_2_10" Grid.Row="2" Grid.Column="10" Style="{StaticResource CalendarCellStyle}"/>
+                                <Border x:Name="Cell_2_11" Grid.Row="2" Grid.Column="11" Style="{StaticResource CalendarCellStyle}"/>
+                                <Border x:Name="Cell_2_12" Grid.Row="2" Grid.Column="12" Style="{StaticResource CalendarCellStyle}"/>
+
+                                <Border x:Name="Cell_3_1" Grid.Row="3" Grid.Column="1" Style="{StaticResource CalendarCellStyle}"/>
+                                <Border x:Name="Cell_3_2" Grid.Row="3" Grid.Column="2" Style="{StaticResource CalendarCellStyle}"/>
+                                <Border x:Name="Cell_3_3" Grid.Row="3" Grid.Column="3" Style="{StaticResource CalendarCellStyle}"/>
+                                <Border x:Name="Cell_3_4" Grid.Row="3" Grid.Column="4" Style="{StaticResource CalendarCellStyle}"/>
+                                <Border x:Name="Cell_3_5" Grid.Row="3" Grid.Column="5" Style="{StaticResource CalendarCellStyle}"/>
+                                <Border x:Name="Cell_3_6" Grid.Row="3" Grid.Column="6" Style="{StaticResource CalendarCellStyle}"/>
+                                <Border x:Name="Cell_3_7" Grid.Row="3" Grid.Column="7" Style="{StaticResource CalendarCellStyle}"/>
+                                <Border x:Name="Cell_3_8" Grid.Row="3" Grid.Column="8" Style="{StaticResource CalendarCellStyle}"/>
+                                <Border x:Name="Cell_3_9" Grid.Row="3" Grid.Column="9" Style="{StaticResource CalendarCellStyle}"/>
+                                <Border x:Name="Cell_3_10" Grid.Row="3" Grid.Column="10" Style="{StaticResource CalendarCellStyle}"/>
+                                <Border x:Name="Cell_3_11" Grid.Row="3" Grid.Column="11" Style="{StaticResource CalendarCellStyle}"/>
+                                <Border x:Name="Cell_3_12" Grid.Row="3" Grid.Column="12" Style="{StaticResource CalendarCellStyle}"/>
+
+                                <Border x:Name="Cell_4_1" Grid.Row="4" Grid.Column="1" Style="{StaticResource CalendarCellStyle}"/>
+                                <Border x:Name="Cell_4_2" Grid.Row="4" Grid.Column="2" Style="{StaticResource CalendarCellStyle}"/>
+                                <Border x:Name="Cell_4_3" Grid.Row="4" Grid.Column="3" Style="{StaticResource CalendarCellStyle}"/>
+                                <Border x:Name="Cell_4_4" Grid.Row="4" Grid.Column="4" Style="{StaticResource CalendarCellStyle}"/>
+                                <Border x:Name="Cell_4_5" Grid.Row="4" Grid.Column="5" Style="{StaticResource CalendarCellStyle}"/>
+                                <Border x:Name="Cell_4_6" Grid.Row="4" Grid.Column="6" Style="{StaticResource CalendarCellStyle}"/>
+                                <Border x:Name="Cell_4_7" Grid.Row="4" Grid.Column="7" Style="{StaticResource CalendarCellStyle}"/>
+                                <Border x:Name="Cell_4_8" Grid.Row="4" Grid.Column="8" Style="{StaticResource CalendarCellStyle}"/>
+                                <Border x:Name="Cell_4_9" Grid.Row="4" Grid.Column="9" Style="{StaticResource CalendarCellStyle}"/>
+                                <Border x:Name="Cell_4_10" Grid.Row="4" Grid.Column="10" Style="{StaticResource CalendarCellStyle}"/>
+                                <Border x:Name="Cell_4_11" Grid.Row="4" Grid.Column="11" Style="{StaticResource CalendarCellStyle}"/>
+                                <Border x:Name="Cell_4_12" Grid.Row="4" Grid.Column="12" Style="{StaticResource CalendarCellStyle}"/>
+
+                                <Border x:Name="Cell_5_1" Grid.Row="5" Grid.Column="1" Style="{StaticResource CalendarCellStyle}"/>
+                                <Border x:Name="Cell_5_2" Grid.Row="5" Grid.Column="2" Style="{StaticResource CalendarCellStyle}"/>
+                                <Border x:Name="Cell_5_3" Grid.Row="5" Grid.Column="3" Style="{StaticResource CalendarCellStyle}"/>
+                                <Border x:Name="Cell_5_4" Grid.Row="5" Grid.Column="4" Style="{StaticResource CalendarCellStyle}"/>
+                                <Border x:Name="Cell_5_5" Grid.Row="5" Grid.Column="5" Style="{StaticResource CalendarCellStyle}"/>
+                                <Border x:Name="Cell_5_6" Grid.Row="5" Grid.Column="6" Style="{StaticResource CalendarCellStyle}"/>
+                                <Border x:Name="Cell_5_7" Grid.Row="5" Grid.Column="7" Style="{StaticResource CalendarCellStyle}"/>
+                                <Border x:Name="Cell_5_8" Grid.Row="5" Grid.Column="8" Style="{StaticResource CalendarCellStyle}"/>
+                                <Border x:Name="Cell_5_9" Grid.Row="5" Grid.Column="9" Style="{StaticResource CalendarCellStyle}"/>
+                                <Border x:Name="Cell_5_10" Grid.Row="5" Grid.Column="10" Style="{StaticResource CalendarCellStyle}"/>
+                                <Border x:Name="Cell_5_11" Grid.Row="5" Grid.Column="11" Style="{StaticResource CalendarCellStyle}"/>
+                                <Border x:Name="Cell_5_12" Grid.Row="5" Grid.Column="12" Style="{StaticResource CalendarCellStyle}"/>
+
+                                <Border x:Name="Cell_6_1" Grid.Row="6" Grid.Column="1" Style="{StaticResource CalendarCellStyle}"/>
+                                <Border x:Name="Cell_6_2" Grid.Row="6" Grid.Column="2" Style="{StaticResource CalendarCellStyle}"/>
+                                <Border x:Name="Cell_6_3" Grid.Row="6" Grid.Column="3" Style="{StaticResource CalendarCellStyle}"/>
+                                <Border x:Name="Cell_6_4" Grid.Row="6" Grid.Column="4" Style="{StaticResource CalendarCellStyle}"/>
+                                <Border x:Name="Cell_6_5" Grid.Row="6" Grid.Column="5" Style="{StaticResource CalendarCellStyle}"/>
+                                <Border x:Name="Cell_6_6" Grid.Row="6" Grid.Column="6" Style="{StaticResource CalendarCellStyle}"/>
+                                <Border x:Name="Cell_6_7" Grid.Row="6" Grid.Column="7" Style="{StaticResource CalendarCellStyle}"/>
+                                <Border x:Name="Cell_6_8" Grid.Row="6" Grid.Column="8" Style="{StaticResource CalendarCellStyle}"/>
+                                <Border x:Name="Cell_6_9" Grid.Row="6" Grid.Column="9" Style="{StaticResource CalendarCellStyle}"/>
+                                <Border x:Name="Cell_6_10" Grid.Row="6" Grid.Column="10" Style="{StaticResource CalendarCellStyle}"/>
+                                <Border x:Name="Cell_6_11" Grid.Row="6" Grid.Column="11" Style="{StaticResource CalendarCellStyle}"/>
+                                <Border x:Name="Cell_6_12" Grid.Row="6" Grid.Column="12" Style="{StaticResource CalendarCellStyle}"/>
+
+                                <Border x:Name="Cell_7_1" Grid.Row="7" Grid.Column="1" Style="{StaticResource CalendarCellStyle}"/>
+                                <Border x:Name="Cell_7_2" Grid.Row="7" Grid.Column="2" Style="{StaticResource CalendarCellStyle}"/>
+                                <Border x:Name="Cell_7_3" Grid.Row="7" Grid.Column="3" Style="{StaticResource CalendarCellStyle}"/>
+                                <Border x:Name="Cell_7_4" Grid.Row="7" Grid.Column="4" Style="{StaticResource CalendarCellStyle}"/>
+                                <Border x:Name="Cell_7_5" Grid.Row="7" Grid.Column="5" Style="{StaticResource CalendarCellStyle}"/>
+                                <Border x:Name="Cell_7_6" Grid.Row="7" Grid.Column="6" Style="{StaticResource CalendarCellStyle}"/>
+                                <Border x:Name="Cell_7_7" Grid.Row="7" Grid.Column="7" Style="{StaticResource CalendarCellStyle}"/>
+                                <Border x:Name="Cell_7_8" Grid.Row="7" Grid.Column="8" Style="{StaticResource CalendarCellStyle}"/>
+                                <Border x:Name="Cell_7_9" Grid.Row="7" Grid.Column="9" Style="{StaticResource CalendarCellStyle}"/>
+                                <Border x:Name="Cell_7_10" Grid.Row="7" Grid.Column="10" Style="{StaticResource CalendarCellStyle}"/>
+                                <Border x:Name="Cell_7_11" Grid.Row="7" Grid.Column="11" Style="{StaticResource CalendarCellStyle}"/>
+                                <Border x:Name="Cell_7_12" Grid.Row="7" Grid.Column="12" Style="{StaticResource CalendarCellStyle}"/>
+                            </Grid>
+                        </StackPanel>
+                        <StackPanel x:Name="CalendarLegend" Orientation="Horizontal" HorizontalAlignment="Center" Margin="0,20,0,0"/>
+                    </StackPanel>
+                </Border>
+
+                <Border Style="{StaticResource InteractiveStatCard}" Margin="0,0,0,16">
+                    <StackPanel>
+                        <TextBlock Text="本周趋势" FontSize="15" FontWeight="SemiBold" Foreground="{DynamicResource TextPrimary}" Margin="0,0,0,16"/>
+                        <Grid>
+                            <Grid.RowDefinitions>
+                                <RowDefinition Height="80"/>
+                                <RowDefinition Height="Auto"/>
+                            </Grid.RowDefinitions>
+                            <StackPanel x:Name="WeeklyChart" Grid.Row="0" Orientation="Horizontal" VerticalAlignment="Bottom">
+                            </StackPanel>
+                            <StackPanel Grid.Row="1" Orientation="Horizontal" Margin="0,10,0,0">
+                                <TextBlock Text="日" FontSize="13" Foreground="#9CA3AF" Width="68" TextAlignment="Center"/>
+                                <TextBlock Text="一" FontSize="13" Foreground="#9CA3AF" Width="68" TextAlignment="Center"/>
+                                <TextBlock Text="二" FontSize="13" Foreground="#9CA3AF" Width="68" TextAlignment="Center"/>
+                                <TextBlock Text="三" FontSize="13" Foreground="#9CA3AF" Width="68" TextAlignment="Center"/>
+                                <TextBlock Text="四" FontSize="13" Foreground="#9CA3AF" Width="68" TextAlignment="Center"/>
+                                <TextBlock Text="五" FontSize="13" Foreground="#9CA3AF" Width="68" TextAlignment="Center"/>
+                                <TextBlock Text="六" FontSize="13" Foreground="#9CA3AF" Width="68" TextAlignment="Center"/>
+                            </StackPanel>
+                        </Grid>
+                    </StackPanel>
+                </Border>
+
+                <Border Style="{StaticResource InteractiveStatCard}" Margin="0,0,0,16">
+                    <StackPanel>
+                        <TextBlock Text="数据汇总" FontSize="15" FontWeight="SemiBold" Foreground="{DynamicResource TextPrimary}" Margin="0,0,0,16"/>
+                        <Grid>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="*"/>
+                            </Grid.ColumnDefinitions>
+                            <Grid.RowDefinitions>
+                                <RowDefinition Height="Auto"/>
+                                <RowDefinition Height="Auto"/>
+                            </Grid.RowDefinitions>
+
+                            <StackPanel Grid.Row="0" Grid.Column="0" Margin="0,0,0,16">
+                                <TextBlock Text="本月累计" FontSize="12" Foreground="{DynamicResource TextTertiary}" Margin="0,0,0,4"/>
+                                <StackPanel Orientation="Horizontal">
+                                    <TextBlock x:Name="MonthlyHours" Text="0" FontSize="24" FontWeight="Bold" Foreground="#3B82F6"/>
+                                    <TextBlock Text="小时" FontSize="12" Foreground="{DynamicResource TextTertiary}" VerticalAlignment="Bottom" Margin="3,0,0,4"/>
+                                </StackPanel>
+                                <TextBlock x:Name="MonthlyHoursSub" Text="本月数据" FontSize="11" Foreground="{DynamicResource TextTertiary}" Margin="0,6,0,0"/>
+                            </StackPanel>
+
+                            <StackPanel Grid.Row="0" Grid.Column="1" Margin="0,0,0,16">
+                                <TextBlock Text="累计时长" FontSize="12" Foreground="{DynamicResource TextTertiary}" Margin="0,0,0,4"/>
+                                <StackPanel Orientation="Horizontal">
+                                    <TextBlock x:Name="TotalHours" Text="0" FontSize="24" FontWeight="Bold" Foreground="#8B5CF6"/>
+                                    <TextBlock Text="小时" FontSize="12" Foreground="{DynamicResource TextTertiary}" VerticalAlignment="Bottom" Margin="3,0,0,4"/>
+                                </StackPanel>
+                                <TextBlock x:Name="TotalHoursSub" Text="自使用以来" FontSize="11" Foreground="{DynamicResource TextTertiary}" Margin="0,6,0,0"/>
+                            </StackPanel>
+
+                            <StackPanel Grid.Row="1" Grid.Column="0">
+                                <TextBlock Text="累计个数" FontSize="12" Foreground="{DynamicResource TextTertiary}" Margin="0,0,0,4"/>
+                                <StackPanel Orientation="Horizontal">
+                                    <TextBlock x:Name="TotalSessions" Text="0" FontSize="24" FontWeight="Bold" Foreground="#F97316"/>
+                                    <TextBlock Text="个" FontSize="12" Foreground="{DynamicResource TextTertiary}" VerticalAlignment="Bottom" Margin="3,0,0,4"/>
+                                </StackPanel>
+                                <TextBlock x:Name="TotalSessionsSub" Text="暂无数据" FontSize="11" Foreground="{DynamicResource TextTertiary}" Margin="0,6,0,0"/>
+                            </StackPanel>
+
+                            <StackPanel Grid.Row="1" Grid.Column="1">
+                                <TextBlock Text="日均时长" FontSize="12" Foreground="{DynamicResource TextTertiary}" Margin="0,0,0,4"/>
+                                <StackPanel Orientation="Horizontal">
+                                    <TextBlock x:Name="AvgDailyHours" Text="0" FontSize="24" FontWeight="Bold" Foreground="#10B981"/>
+                                    <TextBlock Text="小时" FontSize="12" Foreground="{DynamicResource TextTertiary}" VerticalAlignment="Bottom" Margin="3,0,0,4"/>
+                                </StackPanel>
+                                <TextBlock x:Name="AvgDailyHoursSub" Text="平均每日专注" FontSize="11" Foreground="{DynamicResource TextTertiary}" Margin="0,6,0,0"/>
+                            </StackPanel>
+                        </Grid>
+                    </StackPanel>
+                </Border>
+            </StackPanel>
+        </ScrollViewer>
+    </Grid>
+</UserControl>

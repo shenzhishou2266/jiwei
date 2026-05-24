@@ -1,0 +1,136 @@
+<Window x:Class="积微.Views.ImageViewerWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="图片查看"
+        Icon="pack://application:,,,/Resources/icon/番茄.png"
+        Width="800"
+        Height="600"
+        WindowStartupLocation="CenterOwner"
+        ResizeMode="CanResize"
+        Background="{DynamicResource Background}">
+    <Window.Resources>
+        <Style x:Key="InteractiveButton" TargetType="Button">
+            <Setter Property="RenderTransform">
+                <Setter.Value>
+                    <ScaleTransform ScaleX="1" ScaleY="1"/>
+                </Setter.Value>
+            </Setter>
+            <Style.Triggers>
+                <Trigger Property="IsMouseOver" Value="True">
+                    <Trigger.EnterActions>
+                        <BeginStoryboard>
+                            <Storyboard>
+                                <DoubleAnimation Storyboard.TargetProperty="(UIElement.RenderTransform).(ScaleTransform.ScaleX)" 
+                                               To="1.05" Duration="0:0:0.1"/>
+                                <DoubleAnimation Storyboard.TargetProperty="(UIElement.RenderTransform).(ScaleTransform.ScaleY)" 
+                                               To="1.05" Duration="0:0:0.1"/>
+                            </Storyboard>
+                        </BeginStoryboard>
+                    </Trigger.EnterActions>
+                    <Trigger.ExitActions>
+                        <BeginStoryboard>
+                            <Storyboard>
+                                <DoubleAnimation Storyboard.TargetProperty="(UIElement.RenderTransform).(ScaleTransform.ScaleX)" 
+                                               To="1" Duration="0:0:0.1"/>
+                                <DoubleAnimation Storyboard.TargetProperty="(UIElement.RenderTransform).(ScaleTransform.ScaleY)" 
+                                               To="1" Duration="0:0:0.1"/>
+                            </Storyboard>
+                        </BeginStoryboard>
+                    </Trigger.ExitActions>
+                </Trigger>
+            </Style.Triggers>
+        </Style>
+    </Window.Resources>
+    <Grid>
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="*"/>
+            <RowDefinition Height="Auto"/>
+        </Grid.RowDefinitions>
+        
+        <Border Grid.Row="0" Padding="16" Background="{DynamicResource CardBackground}" BorderBrush="{DynamicResource BorderColor}" BorderThickness="0,0,0,1">
+            <Grid>
+                <StackPanel Orientation="Horizontal" HorizontalAlignment="Left">
+                <Button x:Name="CopyButton" Content="复制" Width="80" Height="36" Background="{DynamicResource AccentColor}" Foreground="White" Margin="0,0,8,0" Click="CopyButton_Click" Style="{StaticResource InteractiveButton}">
+                    <Button.Template>
+                        <ControlTemplate TargetType="Button">
+                            <Border CornerRadius="8" Background="{TemplateBinding Background}">
+                                <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                            </Border>
+                        </ControlTemplate>
+                    </Button.Template>
+                </Button>
+                <Button x:Name="OpenFolderButton" Content="打开目录" Width="90" Height="36" Background="#10B981" Foreground="White" Margin="0,0,8,0" Click="OpenFolderButton_Click" Style="{StaticResource InteractiveButton}">
+                    <Button.Template>
+                        <ControlTemplate TargetType="Button">
+                            <Border CornerRadius="8" Background="{TemplateBinding Background}">
+                                <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                            </Border>
+                        </ControlTemplate>
+                    </Button.Template>
+                </Button>
+            </StackPanel>
+            <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
+                <Button x:Name="ZoomInButton" Content="放大" Width="80" Height="36" Background="{DynamicResource HoverColor}" Foreground="{DynamicResource TextSecondary}" Margin="0,0,8,0" Click="ZoomInButton_Click" Style="{StaticResource InteractiveButton}">
+                    <Button.Template>
+                        <ControlTemplate TargetType="Button">
+                            <Border CornerRadius="8" Background="{TemplateBinding Background}">
+                                <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                            </Border>
+                        </ControlTemplate>
+                    </Button.Template>
+                </Button>
+                <Button x:Name="ZoomOutButton" Content="缩小" Width="80" Height="36" Background="{DynamicResource HoverColor}" Foreground="{DynamicResource TextSecondary}" Margin="0,0,8,0" Click="ZoomOutButton_Click" Style="{StaticResource InteractiveButton}">
+                    <Button.Template>
+                        <ControlTemplate TargetType="Button">
+                            <Border CornerRadius="8" Background="{TemplateBinding Background}">
+                                <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                            </Border>
+                        </ControlTemplate>
+                    </Button.Template>
+                </Button>
+                <Button x:Name="ResetButton" Content="重置" Width="80" Height="36" Background="{DynamicResource HoverColor}" Foreground="{DynamicResource TextSecondary}" Margin="0,0,8,0" Click="ResetButton_Click" Style="{StaticResource InteractiveButton}">
+                    <Button.Template>
+                        <ControlTemplate TargetType="Button">
+                            <Border CornerRadius="8" Background="{TemplateBinding Background}">
+                                <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                            </Border>
+                        </ControlTemplate>
+                    </Button.Template>
+                </Button>
+                <Button x:Name="CloseButton" Content="关闭" Width="80" Height="36" Background="#EF4444" Foreground="White" Click="CloseButton_Click" Style="{StaticResource InteractiveButton}">
+                    <Button.Template>
+                        <ControlTemplate TargetType="Button">
+                            <Border CornerRadius="8" Background="{TemplateBinding Background}">
+                                <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                            </Border>
+                        </ControlTemplate>
+                    </Button.Template>
+                </Button>
+            </StackPanel>
+            </Grid>
+        </Border>
+        
+        <Grid x:Name="ImageContainer" Grid.Row="1" Background="{DynamicResource Background}" ClipToBounds="True"
+              MouseLeftButtonDown="Container_MouseLeftButtonDown"
+              MouseLeftButtonUp="Container_MouseLeftButtonUp"
+              MouseMove="Container_MouseMove"
+              MouseWheel="Container_MouseWheel"
+              Cursor="Hand">
+            <Image x:Name="ViewerImage" Stretch="Uniform" RenderTransformOrigin="0.5,0.5">
+                <Image.RenderTransform>
+                    <TransformGroup>
+                        <ScaleTransform x:Name="ImageScale" ScaleX="1" ScaleY="1"/>
+                        <TranslateTransform x:Name="ImageTranslate" X="0" Y="0"/>
+                    </TransformGroup>
+                </Image.RenderTransform>
+            </Image>
+        </Grid>
+        
+        <Border Grid.Row="2" Padding="12" Background="{DynamicResource CardBackground}" BorderBrush="{DynamicResource BorderColor}" BorderThickness="0,1,0,0">
+            <StackPanel Orientation="Horizontal" HorizontalAlignment="Center">
+                <TextBlock x:Name="ZoomInfo" Text="缩放: 100%" FontSize="12" Foreground="{DynamicResource TextTertiary}"/>
+            </StackPanel>
+        </Border>
+    </Grid>
+</Window>

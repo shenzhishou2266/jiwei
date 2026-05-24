@@ -1,0 +1,404 @@
+<UserControl x:Class="积微.Views.GoalsPage"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             mc:Ignorable="d"
+             d:DesignHeight="600"
+             d:DesignWidth="720">
+    <UserControl.Resources>
+        <Style x:Key="ThinScrollBar" TargetType="ScrollBar">
+            <Setter Property="Width" Value="6"/>
+            <Setter Property="MinWidth" Value="0"/>
+            <Setter Property="MaxWidth" Value="6"/>
+            <Setter Property="Margin" Value="0"/>
+            <Setter Property="Padding" Value="0"/>
+            <Setter Property="Background" Value="Transparent"/>
+            <Setter Property="BorderThickness" Value="0"/>
+            <Style.Triggers>
+                <Trigger Property="IsMouseOver" Value="True">
+                    <Setter Property="Width" Value="10"/>
+                    <Setter Property="MaxWidth" Value="10"/>
+                </Trigger>
+            </Style.Triggers>
+        </Style>
+
+        <Style x:Key="InteractiveButton" TargetType="Button">
+            <Setter Property="RenderTransform">
+                <Setter.Value>
+                    <ScaleTransform ScaleX="1" ScaleY="1"/>
+                </Setter.Value>
+            </Setter>
+            <Style.Triggers>
+                <Trigger Property="IsMouseOver" Value="True">
+                    <Trigger.EnterActions>
+                        <BeginStoryboard>
+                            <Storyboard>
+                                <DoubleAnimation Storyboard.TargetProperty="(UIElement.RenderTransform).(ScaleTransform.ScaleX)" 
+                                               To="1.05" Duration="0:0:0.1"/>
+                                <DoubleAnimation Storyboard.TargetProperty="(UIElement.RenderTransform).(ScaleTransform.ScaleY)" 
+                                               To="1.05" Duration="0:0:0.1"/>
+                            </Storyboard>
+                        </BeginStoryboard>
+                    </Trigger.EnterActions>
+                    <Trigger.ExitActions>
+                        <BeginStoryboard>
+                            <Storyboard>
+                                <DoubleAnimation Storyboard.TargetProperty="(UIElement.RenderTransform).(ScaleTransform.ScaleX)" 
+                                               To="1" Duration="0:0:0.1"/>
+                                <DoubleAnimation Storyboard.TargetProperty="(UIElement.RenderTransform).(ScaleTransform.ScaleY)" 
+                                               To="1" Duration="0:0:0.1"/>
+                            </Storyboard>
+                        </BeginStoryboard>
+                    </Trigger.ExitActions>
+                </Trigger>
+            </Style.Triggers>
+        </Style>
+
+        <!-- 统计页风格的卡片悬浮样式，用于搜索框和页面卡片 -->
+        <Style x:Key="InteractiveCard" TargetType="Border">
+            <Setter Property="CornerRadius" Value="12"/>
+            <Setter Property="Background" Value="{DynamicResource CardBackground}"/>
+            <Setter Property="BorderBrush" Value="{DynamicResource BorderColor}"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="Effect">
+                <Setter.Value>
+                    <DropShadowEffect Color="#000000" Opacity="0.04" BlurRadius="12" ShadowDepth="2"/>
+                </Setter.Value>
+            </Setter>
+            <Setter Property="RenderTransform">
+                <Setter.Value>
+                    <TranslateTransform Y="0"/>
+                </Setter.Value>
+            </Setter>
+            <Style.Triggers>
+                <Trigger Property="IsMouseOver" Value="True">
+                    <Trigger.EnterActions>
+                        <BeginStoryboard>
+                            <Storyboard>
+                                <DoubleAnimation Storyboard.TargetProperty="(UIElement.Effect).(DropShadowEffect.Opacity)"
+                                               To="0.08" Duration="0:0:0.2"/>
+                                <DoubleAnimation Storyboard.TargetProperty="(UIElement.Effect).(DropShadowEffect.BlurRadius)"
+                                               To="20" Duration="0:0:0.2"/>
+                                <DoubleAnimation Storyboard.TargetProperty="(UIElement.Effect).(DropShadowEffect.ShadowDepth)"
+                                               To="4" Duration="0:0:0.2"/>
+                                <DoubleAnimation Storyboard.TargetProperty="(UIElement.RenderTransform).(TranslateTransform.Y)"
+                                               To="-2" Duration="0:0:0.2"/>
+                            </Storyboard>
+                        </BeginStoryboard>
+                    </Trigger.EnterActions>
+                    <Trigger.ExitActions>
+                        <BeginStoryboard>
+                            <Storyboard>
+                                <DoubleAnimation Storyboard.TargetProperty="(UIElement.Effect).(DropShadowEffect.Opacity)"
+                                               To="0.04" Duration="0:0:0.2"/>
+                                <DoubleAnimation Storyboard.TargetProperty="(UIElement.Effect).(DropShadowEffect.BlurRadius)"
+                                               To="12" Duration="0:0:0.2"/>
+                                <DoubleAnimation Storyboard.TargetProperty="(UIElement.Effect).(DropShadowEffect.ShadowDepth)"
+                                               To="2" Duration="0:0:0.2"/>
+                                <DoubleAnimation Storyboard.TargetProperty="(UIElement.RenderTransform).(TranslateTransform.Y)"
+                                               To="0" Duration="0:0:0.2"/>
+                            </Storyboard>
+                        </BeginStoryboard>
+                    </Trigger.ExitActions>
+                </Trigger>
+            </Style.Triggers>
+        </Style>
+
+        <!-- 状态选项卡按钮样式 -->
+        <Style x:Key="StatusTabButton" TargetType="Button">
+            <Setter Property="FocusVisualStyle" Value="{x:Null}"/>
+            <Setter Property="RenderTransform">
+                <Setter.Value>
+                    <ScaleTransform ScaleX="1" ScaleY="1"/>
+                </Setter.Value>
+            </Setter>
+            <Style.Triggers>
+                <Trigger Property="IsMouseOver" Value="True">
+                    <Trigger.EnterActions>
+                        <BeginStoryboard>
+                            <Storyboard>
+                                <DoubleAnimation Storyboard.TargetProperty="(UIElement.RenderTransform).(ScaleTransform.ScaleX)" 
+                                               To="1.05" Duration="0:0:0.15"/>
+                                <DoubleAnimation Storyboard.TargetProperty="(UIElement.RenderTransform).(ScaleTransform.ScaleY)" 
+                                               To="1.05" Duration="0:0:0.15"/>
+                            </Storyboard>
+                        </BeginStoryboard>
+                    </Trigger.EnterActions>
+                    <Trigger.ExitActions>
+                        <BeginStoryboard>
+                            <Storyboard>
+                                <DoubleAnimation Storyboard.TargetProperty="(UIElement.RenderTransform).(ScaleTransform.ScaleX)" 
+                                               To="1" Duration="0:0:0.15"/>
+                                <DoubleAnimation Storyboard.TargetProperty="(UIElement.RenderTransform).(ScaleTransform.ScaleY)" 
+                                               To="1" Duration="0:0:0.15"/>
+                            </Storyboard>
+                        </BeginStoryboard>
+                    </Trigger.ExitActions>
+                </Trigger>
+            </Style.Triggers>
+        </Style>
+    </UserControl.Resources>
+    <Grid Margin="20" Background="{DynamicResource Background}">
+        <ScrollViewer x:Name="GoalsScrollViewer" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
+            <ScrollViewer.Resources>
+                <Style x:Key="ThinScrollBar" TargetType="ScrollBar">
+                    <Setter Property="Width" Value="6"/>
+                    <Setter Property="MinWidth" Value="0"/>
+                    <Setter Property="MaxWidth" Value="6"/>
+                    <Setter Property="Margin" Value="0"/>
+                    <Setter Property="Padding" Value="0"/>
+                    <Setter Property="Background" Value="Transparent"/>
+                    <Setter Property="BorderThickness" Value="0"/>
+                    <Style.Triggers>
+                        <Trigger Property="IsMouseOver" Value="True">
+                            <Setter Property="Width" Value="10"/>
+                            <Setter Property="MaxWidth" Value="10"/>
+                        </Trigger>
+                    </Style.Triggers>
+                </Style>
+            </ScrollViewer.Resources>
+            <ScrollViewer.Style>
+                <Style TargetType="ScrollViewer">
+                    <Setter Property="Template">
+                        <Setter.Value>
+                            <ControlTemplate TargetType="ScrollViewer">
+                                <Grid>
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="*"/>
+                                        <ColumnDefinition Width="Auto"/>
+                                    </Grid.ColumnDefinitions>
+                                    <ScrollContentPresenter Grid.Column="0" Content="{TemplateBinding Content}"/>
+                                    <ScrollBar x:Name="PART_VerticalScrollBar" Grid.Column="1" 
+                                               Orientation="Vertical" 
+                                               Value="{TemplateBinding VerticalOffset}" 
+                                               Maximum="{TemplateBinding ScrollableHeight}" 
+                                               ViewportSize="{TemplateBinding ViewportHeight}" 
+                                               Visibility="{TemplateBinding ComputedVerticalScrollBarVisibility}"
+                                               Style="{StaticResource ThinScrollBar}"/>
+                                </Grid>
+                            </ControlTemplate>
+                        </Setter.Value>
+                    </Setter>
+                </Style>
+            </ScrollViewer.Style>
+            <StackPanel HorizontalAlignment="Stretch" VerticalAlignment="Top" MaxWidth="640">
+                <!-- 页头 -->
+                <TextBlock Text="志不立，天下无可成之事" FontSize="26" FontWeight="Bold" 
+                           Foreground="{DynamicResource TextPrimary}" Margin="0,24,0,4" HorizontalAlignment="Center"/>
+                <TextBlock Text="设定目标，记录每一段旅程" FontSize="13" 
+                           Foreground="{DynamicResource TextTertiary}" Margin="0,0,0,36" HorizontalAlignment="Center"/>
+                
+                <!-- 操作按钮行 -->
+                <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,0,0,28">
+                    <Button x:Name="GlobalGoalButton" Content="📝 全局目标" Width="120" Height="44" 
+                            Background="#7C3AED" Foreground="White" Margin="0,0,14,0" 
+                            Click="GlobalGoalButton_Click" Style="{StaticResource InteractiveButton}">
+                        <Button.Template>
+                            <ControlTemplate TargetType="Button">
+                                <Border CornerRadius="22" Background="{TemplateBinding Background}">
+                                    <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                </Border>
+                            </ControlTemplate>
+                        </Button.Template>
+                    </Button>
+                    <Button x:Name="AddGoalButton" Content="+ 添加目标" Width="130" Height="44" 
+                            Background="{DynamicResource AccentColor}" Foreground="White" 
+                            Click="AddGoalButton_Click" Style="{StaticResource InteractiveButton}">
+                        <Button.Template>
+                            <ControlTemplate TargetType="Button">
+                                <Border CornerRadius="22" Background="{TemplateBinding Background}">
+                                    <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                </Border>
+                            </ControlTemplate>
+                        </Button.Template>
+                    </Button>
+                </StackPanel>
+
+                <!-- 状态选项卡 — 使用 DynamicResource 适配主题 -->
+                <StackPanel Orientation="Horizontal" Margin="0,0,0,28" HorizontalAlignment="Left">
+                    <Button x:Name="ActiveButton" Content="进行中" Width="108" Height="40" 
+                            Background="{DynamicResource AccentColor}" Foreground="White" 
+                            Margin="0,0,12,0" Click="StatusButton_Click" 
+                            Style="{StaticResource StatusTabButton}">
+                        <Button.Template>
+                            <ControlTemplate TargetType="Button">
+                                <Border x:Name="TabBorder" CornerRadius="10" 
+                                        Background="{TemplateBinding Background}"
+                                        Padding="0">
+                                    <Border.Effect>
+                                        <DropShadowEffect Color="#000000" Opacity="0" BlurRadius="0" ShadowDepth="0"/>
+                                    </Border.Effect>
+                                    <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                </Border>
+                            </ControlTemplate>
+                        </Button.Template>
+                    </Button>
+                    <Button x:Name="CompletedButton" Content="完成" Width="108" Height="40" 
+                            Background="{DynamicResource HoverColor}" Foreground="{DynamicResource TextSecondary}" 
+                            Margin="0,0,12,0" Click="StatusButton_Click" 
+                            Style="{StaticResource StatusTabButton}">
+                        <Button.Template>
+                            <ControlTemplate TargetType="Button">
+                                <Border x:Name="TabBorder" CornerRadius="10" 
+                                        Background="{TemplateBinding Background}"
+                                        Padding="0">
+                                    <Border.Effect>
+                                        <DropShadowEffect Color="#000000" Opacity="0" BlurRadius="0" ShadowDepth="0"/>
+                                    </Border.Effect>
+                                    <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                </Border>
+                            </ControlTemplate>
+                        </Button.Template>
+                    </Button>
+                    <Button x:Name="FailedButton" Content="失败" Width="108" Height="40" 
+                            Background="{DynamicResource HoverColor}" Foreground="{DynamicResource TextSecondary}" 
+                            Margin="0,0,12,0" Click="StatusButton_Click" 
+                            Style="{StaticResource StatusTabButton}">
+                        <Button.Template>
+                            <ControlTemplate TargetType="Button">
+                                <Border x:Name="TabBorder" CornerRadius="10" 
+                                        Background="{TemplateBinding Background}"
+                                        Padding="0">
+                                    <Border.Effect>
+                                        <DropShadowEffect Color="#000000" Opacity="0" BlurRadius="0" ShadowDepth="0"/>
+                                    </Border.Effect>
+                                    <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                </Border>
+                            </ControlTemplate>
+                        </Button.Template>
+                    </Button>
+                    <Button x:Name="PendingButton" Content="搁置" Width="108" Height="40" 
+                            Background="{DynamicResource HoverColor}" Foreground="{DynamicResource TextSecondary}" 
+                            Margin="0,0,12,0" Click="StatusButton_Click" 
+                            Style="{StaticResource StatusTabButton}">
+                        <Button.Template>
+                            <ControlTemplate TargetType="Button">
+                                <Border x:Name="TabBorder" CornerRadius="10" 
+                                        Background="{TemplateBinding Background}"
+                                        Padding="0">
+                                    <Border.Effect>
+                                        <DropShadowEffect Color="#000000" Opacity="0" BlurRadius="0" ShadowDepth="0"/>
+                                    </Border.Effect>
+                                    <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                </Border>
+                            </ControlTemplate>
+                        </Button.Template>
+                    </Button>
+                </StackPanel>
+                
+                <!-- 标题 + 排序按钮 + 搜索框 同行 -->
+                <Grid Margin="0,0,0,24">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="Auto"/>
+                        <ColumnDefinition Width="Auto"/>
+                        <ColumnDefinition Width="Auto"/>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="Auto"/>
+                    </Grid.ColumnDefinitions>
+                    <TextBlock x:Name="StatusTitle" Grid.Column="0" Text="进行中" FontSize="20" FontWeight="SemiBold" 
+                               Foreground="{DynamicResource TextPrimary}" VerticalAlignment="Center"/>
+                    <Button x:Name="SortByUpdatedAtButton" Grid.Column="1" Width="40" Height="32" 
+                            Background="{DynamicResource AccentColor}" Foreground="White" 
+                            Margin="14,0,8,0" Click="SortButton_Click" 
+                            Style="{StaticResource InteractiveButton}" ToolTip="更新时间排序">
+                        <Button.Template>
+                            <ControlTemplate TargetType="Button">
+                                <Border CornerRadius="8" Background="{TemplateBinding Background}" Padding="8">
+                                    <Path x:Name="SortByUpdatedAtIcon" Data="M6,12L12,6L18,12" 
+                                          Stroke="White" StrokeThickness="2" StrokeLineJoin="Round" 
+                                          Width="16" Height="16" Stretch="Uniform" 
+                                          HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                </Border>
+                            </ControlTemplate>
+                        </Button.Template>
+                    </Button>
+                    <Button x:Name="SortByCreatedAtButton" Grid.Column="2" Width="40" Height="32" 
+                            Background="{DynamicResource HoverColor}" Foreground="{DynamicResource TextSecondary}" 
+                            Click="SortButton_Click" Style="{StaticResource InteractiveButton}" ToolTip="创建时间排序">
+                        <Button.Template>
+                            <ControlTemplate TargetType="Button">
+                                <Border CornerRadius="8" Background="{TemplateBinding Background}" Padding="8">
+                                    <Path x:Name="SortByCreatedAtIcon" Data="M6,12L12,6L18,12" 
+                                          Stroke="{DynamicResource TextSecondary}" StrokeThickness="2" StrokeLineJoin="Round" 
+                                          Width="16" Height="16" Stretch="Uniform" 
+                                          HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                </Border>
+                            </ControlTemplate>
+                        </Button.Template>
+                    </Button>
+                    <!-- 搜索框 — * 列弹性间距推到右侧 -->
+                    <Border x:Name="SearchBorder" Grid.Column="4" Style="{StaticResource InteractiveCard}" 
+                            Height="40" Padding="0" MinWidth="240">
+                        <Grid>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="40"/>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="Auto"/>
+                            </Grid.ColumnDefinitions>
+                            <TextBlock Grid.Column="0" Text="🔍" FontSize="14" 
+                                       HorizontalAlignment="Center" VerticalAlignment="Center"
+                                       Foreground="{DynamicResource TextTertiary}"/>
+                            <TextBox x:Name="SearchTextBox" Grid.Column="1" 
+                                     VerticalAlignment="Center" VerticalContentAlignment="Center"
+                                     FontSize="14" Foreground="{DynamicResource TextPrimary}"
+                                     CaretBrush="{DynamicResource AccentColor}"
+                                     BorderThickness="0" Background="Transparent"
+                                     TextChanged="SearchTextBox_TextChanged"
+                                     GotFocus="SearchTextBox_GotFocus"
+                                     LostFocus="SearchTextBox_LostFocus">
+                                <TextBox.Style>
+                                    <Style TargetType="TextBox">
+                                        <Setter Property="Template">
+                                            <Setter.Value>
+                                                <ControlTemplate TargetType="TextBox">
+                                                    <Grid>
+                                                        <TextBlock x:Name="Placeholder" 
+                                                                   Text="搜索目标标题或描述..."
+                                                                   Foreground="{DynamicResource TextTertiary}"
+                                                                   FontSize="13" VerticalAlignment="Center"
+                                                                   IsHitTestVisible="False"
+                                                                   Visibility="Collapsed"/>
+                                                        <ScrollViewer x:Name="PART_ContentHost" VerticalAlignment="Center"/>
+                                                    </Grid>
+                                                    <ControlTemplate.Triggers>
+                                                        <Trigger Property="Text" Value="">
+                                                            <Setter TargetName="Placeholder" Property="Visibility" Value="Visible"/>
+                                                        </Trigger>
+                                                    </ControlTemplate.Triggers>
+                                                </ControlTemplate>
+                                            </Setter.Value>
+                                        </Setter>
+                                    </Style>
+                                </TextBox.Style>
+                            </TextBox>
+                            <Button x:Name="ClearSearchButton" Grid.Column="2" 
+                                    Content="✕" Width="40" Height="40"
+                                    FontSize="13" Foreground="{DynamicResource TextTertiary}"
+                                    Background="Transparent" BorderThickness="0"
+                                    Cursor="Hand" Click="ClearSearchButton_Click"
+                                    Visibility="Collapsed"
+                                    Style="{StaticResource InteractiveButton}">
+                                <Button.Template>
+                                    <ControlTemplate TargetType="Button">
+                                        <Border Background="Transparent" CornerRadius="20">
+                                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                        </Border>
+                                    </ControlTemplate>
+                                </Button.Template>
+                            </Button>
+                        </Grid>
+                    </Border>
+                </Grid>
+
+                <!-- 目标列表容器 -->
+                <StackPanel x:Name="GoalsListContainer">
+                    <StackPanel x:Name="ActiveGoalsPanel" Margin="0,0,0,0"/>
+                    <StackPanel x:Name="CompletedGoalsPanel" Visibility="Collapsed"/>
+                    <StackPanel x:Name="FailedGoalsPanel" Visibility="Collapsed"/>
+                    <StackPanel x:Name="PendingGoalsPanel" Visibility="Collapsed"/>
+                </StackPanel>
+            </StackPanel>
+        </ScrollViewer>
+    </Grid>
+</UserControl>

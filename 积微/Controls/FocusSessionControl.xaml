@@ -1,0 +1,479 @@
+<UserControl x:Class="积微.Controls.FocusSessionControl"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             xmlns:local="clr-namespace:积微.Controls"
+             mc:Ignorable="d"
+             d:DesignHeight="600"
+             d:DesignWidth="720"
+             Focusable="True"
+             FocusVisualStyle="{x:Null}"
+             Loaded="UserControl_Loaded"
+             PreviewKeyDown="UserControl_PreviewKeyDown">
+    <UserControl.Resources>
+        <DropShadowEffect x:Key="ButtonShadow" Color="#000000" Opacity="0.1" BlurRadius="8" ShadowDepth="2"/>
+        <DropShadowEffect x:Key="ButtonShadowHover" Color="#000000" Opacity="0.15" BlurRadius="12" ShadowDepth="3"/>
+        
+        <Style x:Key="RoundedButtonStyle" TargetType="Button">
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border x:Name="ButtonBorder" CornerRadius="16" Background="{TemplateBinding Background}"
+                                BorderThickness="{TemplateBinding BorderThickness}"
+                                BorderBrush="{TemplateBinding BorderBrush}"
+                                Effect="{StaticResource ButtonShadow}">
+                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="ButtonBorder" Property="Effect" Value="{StaticResource ButtonShadowHover}"/>
+                                <Setter TargetName="ButtonBorder" Property="Opacity" Value="0.9"/>
+                            </Trigger>
+                            <Trigger Property="IsPressed" Value="True">
+                                <Setter TargetName="ButtonBorder" Property="Effect" Value="{x:Null}"/>
+                                <Setter TargetName="ButtonBorder" Property="Opacity" Value="0.8"/>
+                                <Setter TargetName="ButtonBorder" Property="RenderTransform">
+                                    <Setter.Value>
+                                        <ScaleTransform ScaleX="0.98" ScaleY="0.98"/>
+                                    </Setter.Value>
+                                </Setter>
+                                <Setter TargetName="ButtonBorder" Property="RenderTransformOrigin" Value="0.5,0.5"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+            <Setter Property="Margin" Value="5"/>
+            <Setter Property="Cursor" Value="Hand"/>
+        </Style>
+        
+        <Style x:Key="RoundButtonStyle" TargetType="Button">
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border x:Name="ButtonBorder" CornerRadius="50" Background="{TemplateBinding Background}"
+                                BorderThickness="{TemplateBinding BorderThickness}"
+                                BorderBrush="{TemplateBinding BorderBrush}"
+                                Effect="{StaticResource ButtonShadow}">
+                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="ButtonBorder" Property="Effect" Value="{StaticResource ButtonShadowHover}"/>
+                                <Setter TargetName="ButtonBorder" Property="Opacity" Value="0.9"/>
+                            </Trigger>
+                            <Trigger Property="IsPressed" Value="True">
+                                <Setter TargetName="ButtonBorder" Property="Effect" Value="{x:Null}"/>
+                                <Setter TargetName="ButtonBorder" Property="Opacity" Value="0.8"/>
+                                <Setter TargetName="ButtonBorder" Property="RenderTransform">
+                                    <Setter.Value>
+                                        <ScaleTransform ScaleX="0.95" ScaleY="0.95"/>
+                                    </Setter.Value>
+                                </Setter>
+                                <Setter TargetName="ButtonBorder" Property="RenderTransformOrigin" Value="0.5,0.5"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+            <Setter Property="Cursor" Value="Hand"/>
+        </Style>
+        
+        <Style x:Key="ToggleButtonStyle" TargetType="Button">
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border x:Name="ButtonBorder" CornerRadius="16" Background="{TemplateBinding Background}"
+                                BorderThickness="{TemplateBinding BorderThickness}"
+                                BorderBrush="{TemplateBinding BorderBrush}"
+                                Padding="20,12"
+                                Effect="{StaticResource ButtonShadow}">
+                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="ButtonBorder" Property="Effect" Value="{StaticResource ButtonShadowHover}"/>
+                                <Setter TargetName="ButtonBorder" Property="Opacity" Value="0.92"/>
+                            </Trigger>
+                            <Trigger Property="IsPressed" Value="True">
+                                <Setter TargetName="ButtonBorder" Property="Effect" Value="{x:Null}"/>
+                                <Setter TargetName="ButtonBorder" Property="Opacity" Value="0.85"/>
+                                <Setter TargetName="ButtonBorder" Property="RenderTransform">
+                                    <Setter.Value>
+                                        <ScaleTransform ScaleX="0.97" ScaleY="0.97"/>
+                                    </Setter.Value>
+                                </Setter>
+                                <Setter TargetName="ButtonBorder" Property="RenderTransformOrigin" Value="0.5,0.5"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+            <Setter Property="FontWeight" Value="Medium"/>
+            <Setter Property="Cursor" Value="Hand"/>
+        </Style>
+        
+        <Style x:Key="SmallIconButtonStyle" TargetType="Button">
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border x:Name="ButtonBorder" CornerRadius="8" Background="{TemplateBinding Background}"
+                                BorderBrush="#E5E7EB" BorderThickness="1">
+                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="ButtonBorder" Property="Background" Value="#E5E7EB"/>
+                            </Trigger>
+                            <Trigger Property="IsPressed" Value="True">
+                                <Setter TargetName="ButtonBorder" Property="Background" Value="#D1D5DB"/>
+                                <Setter TargetName="ButtonBorder" Property="RenderTransform">
+                                    <Setter.Value>
+                                        <ScaleTransform ScaleX="0.95" ScaleY="0.95"/>
+                                    </Setter.Value>
+                                </Setter>
+                                <Setter TargetName="ButtonBorder" Property="RenderTransformOrigin" Value="0.5,0.5"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+            <Setter Property="Cursor" Value="Hand"/>
+        </Style>
+        
+        <Style x:Key="TextBoxStyle" TargetType="TextBox">
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="TextBox">
+                        <Border CornerRadius="16" Background="{DynamicResource CardBackground}"
+                                BorderThickness="1" BorderBrush="{DynamicResource BorderColor}"
+                                Padding="16,12">
+                            <ScrollViewer x:Name="PART_ContentHost" HorizontalAlignment="Left" VerticalAlignment="Top"/>
+                        </Border>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+            <Setter Property="Foreground" Value="{DynamicResource TextPrimary}"/>
+            <Setter Property="CaretBrush" Value="{DynamicResource TextPrimary}"/>
+            <Setter Property="Cursor" Value="IBeam"/>
+            <Setter Property="FontSize" Value="14"/>
+            <Setter Property="VerticalContentAlignment" Value="Top"/>
+        </Style>
+        
+        <Style x:Key="CustomComboBox" TargetType="ComboBox">
+            <Setter Property="Background" Value="{DynamicResource HoverColor}"/>
+            <Setter Property="Foreground" Value="{DynamicResource TextSecondary}"/>
+            <Setter Property="BorderThickness" Value="0"/>
+            <Setter Property="Padding" Value="8,0"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="ComboBox">
+                        <Border x:Name="OuterBorder"
+                                Background="{TemplateBinding Background}"
+                                BorderBrush="{DynamicResource BorderColor}"
+                                BorderThickness="{TemplateBinding BorderThickness}"
+                                CornerRadius="10">
+                            <Grid>
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*"/>
+                                    <ColumnDefinition Width="Auto"/>
+                                </Grid.ColumnDefinitions>
+                                
+                                <ToggleButton x:Name="ToggleButton"
+                                              Grid.Column="0"
+                                              Grid.ColumnSpan="2"
+                                              Focusable="False"
+                                              IsChecked="{Binding Path=IsDropDownOpen, Mode=TwoWay, RelativeSource={RelativeSource TemplatedParent}}"
+                                              ClickMode="Press"
+                                              Background="Transparent">
+                                    <ToggleButton.Template>
+                                        <ControlTemplate TargetType="ToggleButton">
+                                            <Border Background="Transparent" Padding="0"/>
+                                        </ControlTemplate>
+                                    </ToggleButton.Template>
+                                </ToggleButton>
+                                
+                                <ContentPresenter x:Name="ContentSite"
+                                                  Grid.Column="0"
+                                                  Content="{TemplateBinding SelectionBoxItem}"
+                                                  ContentTemplate="{TemplateBinding SelectionBoxItemTemplate}"
+                                                  ContentTemplateSelector="{TemplateBinding ItemTemplateSelector}"
+                                                  Margin="10,0,5,0"
+                                                  VerticalAlignment="Center"
+                                                  HorizontalAlignment="Left"
+                                                  IsHitTestVisible="False"/>
+                                
+                                <Path x:Name="Arrow"
+                                      Grid.Column="1"
+                                      Data="M0,3 L3,6 L6,3"
+                                      Fill="{DynamicResource TextSecondary}"
+                                      Margin="0,0,8,0"
+                                      HorizontalAlignment="Right"
+                                      VerticalAlignment="Center"
+                                      Width="6"
+                                      Height="6"
+                                      IsHitTestVisible="False"/>
+                                
+                                <Popup x:Name="Popup"
+                                       Placement="Bottom"
+                                       IsOpen="{TemplateBinding IsDropDownOpen}"
+                                       AllowsTransparency="True"
+                                       Focusable="False"
+                                       PopupAnimation="Slide">
+                                    <Border x:Name="DropDownBorder"
+                                            Background="{DynamicResource CardBackground}"
+                                            BorderBrush="{DynamicResource BorderColor}"
+                                            BorderThickness="1"
+                                            CornerRadius="10">
+                                        <Border.Effect>
+                                            <DropShadowEffect BlurRadius="8" Opacity="0.1" ShadowDepth="2" Direction="270"/>
+                                        </Border.Effect>
+                                        <ScrollViewer Margin="0">
+                                            <ItemsPresenter/>
+                                        </ScrollViewer>
+                                    </Border>
+                                </Popup>
+                            </Grid>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="OuterBorder" Property="Background" Value="{DynamicResource HoverColor}"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+        
+        <Style x:Key="CustomComboBoxItem" TargetType="ComboBoxItem">
+            <Setter Property="Background" Value="Transparent"/>
+            <Setter Property="Foreground" Value="{DynamicResource TextPrimary}"/>
+            <Setter Property="Padding" Value="12,10"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="ComboBoxItem">
+                        <Border x:Name="Bd"
+                                Background="{TemplateBinding Background}"
+                                BorderThickness="0"
+                                CornerRadius="8"
+                                Padding="{TemplateBinding Padding}">
+                            <ContentPresenter/>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsHighlighted" Value="True">
+                                <Setter TargetName="Bd" Property="Background" Value="{DynamicResource HoverColor}"/>
+                            </Trigger>
+                            <Trigger Property="IsSelected" Value="True">
+                                <Setter TargetName="Bd" Property="Background" Value="{DynamicResource AccentColor}"/>
+                                <Setter Property="Foreground" Value="White"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+    </UserControl.Resources>
+    <Grid Background="{DynamicResource Background}">
+        <Button x:Name="ModeSwitchButton" Click="ModeSwitchButton_Click"
+                Width="36" Height="36" 
+                Background="{DynamicResource HoverColor}"
+                Style="{StaticResource SmallIconButtonStyle}"
+                HorizontalAlignment="Right" VerticalAlignment="Top"
+                Margin="10,10,10,0" ToolTip="切换到计时器模式">
+            <Path Data="M12,2C6.48,2 2,6.48 2,12C2,17.52 6.48,22 12,22C17.52,22 22,17.52 22,12C22,6.48 17.52,2 12,2M12.5,7V12.25L17,14.92L16.25,16.15L11,13V7H12.5Z" Fill="{DynamicResource TextSecondary}" Width="18" Height="18" Stretch="Uniform" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+        </Button>
+        
+        <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center" Width="400" Margin="20">
+            <StackPanel Orientation="Horizontal" Margin="0,0,0,10" HorizontalAlignment="Center">
+                <Button x:Name="WorkButton" Click="WorkButton_Click"
+                        Style="{StaticResource ToggleButtonStyle}"
+                        Background="#F43F5E" Foreground="White">
+                    专注
+                </Button>
+                <Button x:Name="BreakButton" Click="BreakButton_Click"
+                        Style="{StaticResource ToggleButtonStyle}"
+                        Background="{DynamicResource CardBackground}" Foreground="{DynamicResource TextSecondary}"
+                        Margin="8,0,0,0">
+                    休息
+                </Button>
+            </StackPanel>
+            
+            <Grid Margin="0,0,0,10" Height="280" Width="280">
+                <Viewbox>
+                    <Grid Width="200" Height="200">
+                        <Ellipse Width="180" Height="180" Stroke="{DynamicResource BorderColor}" StrokeThickness="8" Fill="Transparent"
+                                 HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                        <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center">
+                            <TextBlock x:Name="TimerText" FontSize="48" FontWeight="Bold" Text="25:00" 
+                                       HorizontalAlignment="Center" Foreground="{DynamicResource TextPrimary}"/>
+                            <TextBlock x:Name="SessionText" FontSize="14" Text="Focus Time" 
+                                       HorizontalAlignment="Center" Foreground="{DynamicResource TextTertiary}"/>
+                        </StackPanel>
+                        <Path x:Name="ProgressPath" Stroke="#F43F5E" StrokeThickness="8" Fill="Transparent"
+                              StrokeStartLineCap="Round" StrokeEndLineCap="Round" HorizontalAlignment="Left" VerticalAlignment="Top"/>
+                    </Grid>
+                </Viewbox>
+            </Grid>
+            
+            <TextBlock x:Name="CurrentGoalText" Text="" FontSize="30" FontWeight="SemiBold" Foreground="#FFD700" HorizontalAlignment="Center" VerticalAlignment="Center" Margin="0,-10,0,10" MinHeight="28" Visibility="Hidden"/>
+            
+            <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" Margin="0,0,0,20">
+                <Button x:Name="ResetButton" Click="ResetButton_Click"
+                        Width="44" Height="44" BorderThickness="0"
+                        Background="{DynamicResource CardBackground}" Foreground="{DynamicResource TextSecondary}"
+                        Style="{StaticResource RoundButtonStyle}">
+                    <Path Data="M17.65,6.35C16.2,4.9 14.21,4 12,4A8,8 0 0,0 4,12A8,8 0 0,0 12,20C15.73,20 18.84,17.45 19.73,14H17.65C16.83,16.33 14.61,18 12,18A6,6 0 0,1 6,12A6,6 0 0,1 12,6C13.66,6 15.14,6.69 16.22,7.78L13,11H20V4L17.65,6.35Z" Fill="{DynamicResource TextSecondary}" Width="20" Height="20" Stretch="Uniform" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                </Button>
+                <Button x:Name="PlayPauseButton" Click="PlayPauseButton_Click"
+                        Width="44" Height="44" BorderThickness="0"
+                        Background="{DynamicResource CardBackground}" Foreground="{DynamicResource TextSecondary}"
+                        Style="{StaticResource RoundButtonStyle}"
+                        Margin="12,0,0,0">
+                    <Path x:Name="PlayPauseIcon" Data="M8,5.14V19.14L19,12.14L8,5.14Z" Fill="{DynamicResource TextSecondary}" Width="20" Height="20" Stretch="Uniform" HorizontalAlignment="Center" VerticalAlignment="Center" Margin="0,0,0,0"/>
+                </Button>
+                <Button x:Name="StopButton" Click="StopButton_Click"
+                        Width="44" Height="44" BorderThickness="0"
+                        Background="{DynamicResource CardBackground}" Foreground="{DynamicResource TextSecondary}"
+                        Style="{StaticResource RoundButtonStyle}"
+                        Margin="12,0,0,0">
+                    <Path Data="M6,6H18V18H6V6Z" Fill="{DynamicResource TextSecondary}" Width="20" Height="20" Stretch="Uniform" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                </Button>
+                <Button x:Name="WhiteNoiseButton" Click="WhiteNoiseButton_Click"
+                        Width="44" Height="44" BorderThickness="0"
+                        Background="{DynamicResource CardBackground}" Foreground="{DynamicResource TextSecondary}"
+                        Style="{StaticResource RoundButtonStyle}"
+                        Margin="12,0,0,0" ToolTip="播放白噪音">
+                    <Path x:Name="WhiteNoiseIcon" Data="M12,3C12.55,3 13,3.45 13,4C13,4.55 12.55,5 12,5C11.45,5 11,4.55 11,4C11,3.45 11.45,3 12,3M3,13H6V11H3V13M7,13H10V11H7V13M11,13H14V11H11V13M15,13H18V11H15V13M19,13H22V11H19V13M3,17H6V15H3V17M7,17H10V15H7V17M11,17H14V15H11V17M15,17H18V15H15V17M19,17H22V15H19V17M3,9H6V7H3V9M7,9H10V7H7V9M11,9H14V7H11V9M15,9H18V7H15V9M19,9H22V7H19V9Z" Fill="{DynamicResource TextSecondary}" Width="20" Height="20" Stretch="Uniform" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                </Button>
+            </StackPanel>
+            
+            <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center" Margin="0,0,0,0">
+                
+                <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" VerticalAlignment="Center">
+                <Button x:Name="SelectGoalButton" Width="32" Height="32" Background="{DynamicResource CardBackground}" Margin="0,0,8,0" ToolTip="选择目标" Style="{StaticResource SmallIconButtonStyle}" Click="SelectGoalButton_Click">
+                    <Path Data="M3,6H21V8H3V6M3,11H21V13H3V11M3,16H21V18H3V16Z" Fill="{DynamicResource TextSecondary}" Width="16" Height="16" Stretch="Uniform" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                </Button>
+                
+                <Button x:Name="ClearGoalButton" Width="32" Height="32" Background="{DynamicResource CardBackground}" Margin="0,0,8,0" ToolTip="清空当前目标" Style="{StaticResource SmallIconButtonStyle}" Click="ClearGoalButton_Click">
+                    <Path Data="M19,6.41L17.59,5L12,10.59L6.41,5L5,6.41L10.59,12L5,17.59L6.41,19L12,13.41L17.59,19L19,17.59L13.41,12L19,6.41Z" Fill="{DynamicResource TextSecondary}" Width="16" Height="16" Stretch="Uniform" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                </Button>
+                
+                <Button x:Name="AddGoalButton" Width="32" Height="32" Background="{DynamicResource CardBackground}" ToolTip="添加目标" Style="{StaticResource SmallIconButtonStyle}" Click="AddGoalButton_Click">
+                    <Path Data="M19,13H13V19H11V13H5V11H11V5H13V11H19V13Z" Fill="{DynamicResource TextSecondary}" Width="16" Height="16" Stretch="Uniform" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                </Button>
+                </StackPanel>
+            </StackPanel>
+        </StackPanel>
+        
+        <!-- 覆盖层：时间线输入框 -->
+        <Border x:Name="TimelineOverlay"
+                Background="Transparent"
+                Visibility="Collapsed">
+            <Grid>
+                <Border CornerRadius="16" 
+                        Background="{DynamicResource CardBackground}"
+                        BorderThickness="1" 
+                        BorderBrush="{DynamicResource BorderColor}"
+                        Padding="8"
+                        Width="380"
+                        MinHeight="150"
+                        MaxHeight="300"
+                        HorizontalAlignment="Center"
+                        VerticalAlignment="Center">
+                    <Grid>
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="Auto"/>
+                            <RowDefinition Height="Auto"/>
+                            <RowDefinition Height="*"/>
+                        </Grid.RowDefinitions>
+                        
+                        <!-- 输入框 -->
+                        <TextBox x:Name="TimelineInputTextBox" 
+                                 Grid.Row="0"
+                                 BorderThickness="0"
+                                 Background="Transparent"
+                                 MinHeight="60"
+                                 MaxHeight="150"
+                                 AcceptsReturn="True"
+                                 TextWrapping="Wrap"
+                                 Foreground="{DynamicResource TextPrimary}"
+                                 CaretBrush="{DynamicResource TextPrimary}"
+                                 FontSize="14"
+                                 VerticalContentAlignment="Top"
+                                 PreviewKeyDown="TimelineInputTextBox_PreviewKeyDown"/>
+                        
+                        <!-- 图片预览区域 -->
+                        <ItemsControl x:Name="ImagePreviewPanel" Grid.Row="1" Margin="0,8,0,0" Visibility="Collapsed">
+                            <ItemsControl.ItemsPanel>
+                                <ItemsPanelTemplate>
+                                    <WrapPanel/>
+                                </ItemsPanelTemplate>
+                            </ItemsControl.ItemsPanel>
+                            <ItemsControl.ItemTemplate>
+                                <DataTemplate>
+                                    <Border Margin="0,0,8,8" Cursor="Hand">
+                                        <Grid Width="60" Height="60">
+                                            <Image Source="{Binding}" Stretch="UniformToFill" Width="60" Height="60" Tag="{Binding}" MouseLeftButtonDown="PreviewImage_MouseLeftButtonDown"/>
+                                            <Border Background="#80000000" Width="20" Height="20" CornerRadius="10" HorizontalAlignment="Right" VerticalAlignment="Top" Margin="2">
+                                                <Button Background="Transparent" BorderThickness="0" Tag="{Binding}" Click="RemoveImage_Click" Padding="0">
+                                                    <TextBlock Text="×" FontSize="14" Foreground="White" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                                </Button>
+                                            </Border>
+                                        </Grid>
+                                    </Border>
+                                </DataTemplate>
+                            </ItemsControl.ItemTemplate>
+                        </ItemsControl>
+                        
+                        <!-- 按钮区域 -->
+                        <Grid Grid.Row="2" Margin="0,8,0,0" VerticalAlignment="Bottom">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="Auto"/>
+                                <ColumnDefinition Width="Auto"/>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="Auto"/>
+                            </Grid.ColumnDefinitions>
+                            
+                            <!-- 左边：添加图片按钮 -->
+                            <Button x:Name="AddImageButton" Grid.Column="0" Width="32" Height="32" Background="{DynamicResource HoverColor}" Click="AddImageButton_Click" Style="{StaticResource SmallIconButtonStyle}">
+                                <Path Data="M21,19V5C21,3.89 20.1,3 19,3H5C3.89,3 3,3.89 3,5V19C3,20.1 3.89,21 5,21H19C20.1,21 21,20.1 21,19M8.5,13.5L11,16.5L14.5,12L19,18H5M6.5,8.5C7.33,8.5 8,7.83 8,7C8,6.17 7.33,5.5 6.5,5.5C5.67,5.5 5,6.17 5,7C5,7.83 5.67,8.5 6.5,8.5Z" Fill="{DynamicResource TextSecondary}" Width="16" Height="16" Stretch="Uniform"/>
+                            </Button>
+                            
+                            <!-- 类型选择 -->
+                                <ComboBox x:Name="TypeComboBox" Grid.Column="1" Width="70" Height="32" 
+                                      Margin="8,0,0,0" 
+                                      Style="{StaticResource CustomComboBox}"
+                                      SelectedIndex="0">
+                    <ComboBoxItem Style="{StaticResource CustomComboBoxItem}" Content="想法" />
+                    <ComboBoxItem Style="{StaticResource CustomComboBoxItem}" Content="问题" />
+                </ComboBox>
+                            
+                            <!-- 右边：取消和保存按钮 -->
+                            <StackPanel Grid.Column="3" Orientation="Horizontal">
+                                <Button x:Name="CancelButton" Content="取消" Width="60" Height="32" Background="{DynamicResource HoverColor}" Foreground="{DynamicResource TextSecondary}" Margin="0,0,8,0" Click="CancelButton_Click">
+                                    <Button.Template>
+                                        <ControlTemplate TargetType="Button">
+                                            <Border CornerRadius="8" Background="{TemplateBinding Background}" Padding="0">
+                                                <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                            </Border>
+                                        </ControlTemplate>
+                                    </Button.Template>
+                                </Button>
+                                <Button x:Name="SaveButton" Content="保存" Width="60" Height="32" Background="#10B981" Foreground="White" Click="SaveButton_Click">
+                                    <Button.Template>
+                                        <ControlTemplate TargetType="Button">
+                                            <Border CornerRadius="8" Background="{TemplateBinding Background}" Padding="0">
+                                                <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                            </Border>
+                                        </ControlTemplate>
+                                    </Button.Template>
+                                </Button>
+                            </StackPanel>
+                        </Grid>
+                    </Grid>
+                </Border>
+            </Grid>
+        </Border>
+    </Grid>
+</UserControl>

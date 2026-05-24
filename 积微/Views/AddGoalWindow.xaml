@@ -1,0 +1,290 @@
+<Window x:Class="积微.Views.AddGoalWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="添加目标"
+        Icon="pack://application:,,,/Resources/icon/番茄.png"
+        Width="480"
+        Height="440"
+        WindowStartupLocation="CenterOwner"
+        Background="{DynamicResource Background}">
+    <Window.Resources>
+        <Style x:Key="ThinScrollBar" TargetType="ScrollBar">
+            <Setter Property="Width" Value="6"/>
+            <Setter Property="MinWidth" Value="0"/>
+            <Setter Property="MaxWidth" Value="6"/>
+            <Setter Property="Margin" Value="0"/>
+            <Setter Property="Padding" Value="0"/>
+            <Setter Property="Background" Value="Transparent"/>
+            <Setter Property="BorderThickness" Value="0"/>
+            <Style.Triggers>
+                <Trigger Property="IsMouseOver" Value="True">
+                    <Setter Property="Width" Value="10"/>
+                    <Setter Property="MaxWidth" Value="10"/>
+                </Trigger>
+            </Style.Triggers>
+        </Style>
+
+        <Style x:Key="InteractiveButton" TargetType="Button">
+            <Setter Property="FocusVisualStyle" Value="{x:Null}"/>
+            <Setter Property="RenderTransform">
+                <Setter.Value>
+                    <ScaleTransform ScaleX="1" ScaleY="1"/>
+                </Setter.Value>
+            </Setter>
+            <Style.Triggers>
+                <Trigger Property="IsMouseOver" Value="True">
+                    <Trigger.EnterActions>
+                        <BeginStoryboard>
+                            <Storyboard>
+                                <DoubleAnimation Storyboard.TargetProperty="(UIElement.RenderTransform).(ScaleTransform.ScaleX)" 
+                                               To="1.05" Duration="0:0:0.1"/>
+                                <DoubleAnimation Storyboard.TargetProperty="(UIElement.RenderTransform).(ScaleTransform.ScaleY)" 
+                                               To="1.05" Duration="0:0:0.1"/>
+                            </Storyboard>
+                        </BeginStoryboard>
+                    </Trigger.EnterActions>
+                    <Trigger.ExitActions>
+                        <BeginStoryboard>
+                            <Storyboard>
+                                <DoubleAnimation Storyboard.TargetProperty="(UIElement.RenderTransform).(ScaleTransform.ScaleX)" 
+                                               To="1" Duration="0:0:0.1"/>
+                                <DoubleAnimation Storyboard.TargetProperty="(UIElement.RenderTransform).(ScaleTransform.ScaleY)" 
+                                               To="1" Duration="0:0:0.1"/>
+                            </Storyboard>
+                        </BeginStoryboard>
+                    </Trigger.ExitActions>
+                </Trigger>
+            </Style.Triggers>
+        </Style>
+
+        <Style x:Key="InteractiveInputBorder" TargetType="Border">
+            <Setter Property="BorderBrush" Value="{DynamicResource BorderColor}"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="CornerRadius" Value="12"/>
+            <Setter Property="Padding" Value="3"/>
+            <Setter Property="Background" Value="{DynamicResource CardBackground}"/>
+            <Setter Property="Effect">
+                <Setter.Value>
+                    <DropShadowEffect Color="#000000" Opacity="0.04" BlurRadius="12" ShadowDepth="2"/>
+                </Setter.Value>
+            </Setter>
+            <Setter Property="RenderTransform">
+                <Setter.Value>
+                    <TranslateTransform Y="0"/>
+                </Setter.Value>
+            </Setter>
+            <Style.Triggers>
+                <Trigger Property="IsMouseOver" Value="True">
+                    <Trigger.EnterActions>
+                        <BeginStoryboard>
+                            <Storyboard>
+                                <DoubleAnimation Storyboard.TargetProperty="(UIElement.Effect).(DropShadowEffect.Opacity)"
+                                               To="0.08" Duration="0:0:0.2"/>
+                                <DoubleAnimation Storyboard.TargetProperty="(UIElement.Effect).(DropShadowEffect.BlurRadius)"
+                                               To="20" Duration="0:0:0.2"/>
+                                <DoubleAnimation Storyboard.TargetProperty="(UIElement.Effect).(DropShadowEffect.ShadowDepth)"
+                                               To="4" Duration="0:0:0.2"/>
+                                <DoubleAnimation Storyboard.TargetProperty="(UIElement.RenderTransform).(TranslateTransform.Y)"
+                                               To="-2" Duration="0:0:0.2"/>
+                            </Storyboard>
+                        </BeginStoryboard>
+                    </Trigger.EnterActions>
+                    <Trigger.ExitActions>
+                        <BeginStoryboard>
+                            <Storyboard>
+                                <DoubleAnimation Storyboard.TargetProperty="(UIElement.Effect).(DropShadowEffect.Opacity)"
+                                               To="0.04" Duration="0:0:0.2"/>
+                                <DoubleAnimation Storyboard.TargetProperty="(UIElement.Effect).(DropShadowEffect.BlurRadius)"
+                                               To="12" Duration="0:0:0.2"/>
+                                <DoubleAnimation Storyboard.TargetProperty="(UIElement.Effect).(DropShadowEffect.ShadowDepth)"
+                                               To="2" Duration="0:0:0.2"/>
+                                <DoubleAnimation Storyboard.TargetProperty="(UIElement.RenderTransform).(TranslateTransform.Y)"
+                                               To="0" Duration="0:0:0.2"/>
+                            </Storyboard>
+                        </BeginStoryboard>
+                    </Trigger.ExitActions>
+                </Trigger>
+            </Style.Triggers>
+        </Style>
+
+        <Style x:Key="InteractiveTag" TargetType="Border">
+            <Setter Property="Cursor" Value="Hand"/>
+            <Setter Property="CornerRadius" Value="14"/>
+            <Setter Property="Padding" Value="12,5"/>
+            <Setter Property="Background" Value="{DynamicResource HoverColor}"/>
+            <Setter Property="BorderBrush" Value="{DynamicResource BorderColor}"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="RenderTransform">
+                <Setter.Value>
+                    <ScaleTransform ScaleX="1" ScaleY="1"/>
+                </Setter.Value>
+            </Setter>
+            <Style.Triggers>
+                <Trigger Property="IsMouseOver" Value="True">
+                    <Trigger.EnterActions>
+                        <BeginStoryboard>
+                            <Storyboard>
+                                <DoubleAnimation Storyboard.TargetProperty="(UIElement.RenderTransform).(ScaleTransform.ScaleX)" 
+                                               To="1.05" Duration="0:0:0.15"/>
+                                <DoubleAnimation Storyboard.TargetProperty="(UIElement.RenderTransform).(ScaleTransform.ScaleY)" 
+                                               To="1.05" Duration="0:0:0.15"/>
+                            </Storyboard>
+                        </BeginStoryboard>
+                    </Trigger.EnterActions>
+                    <Trigger.ExitActions>
+                        <BeginStoryboard>
+                            <Storyboard>
+                                <DoubleAnimation Storyboard.TargetProperty="(UIElement.RenderTransform).(ScaleTransform.ScaleX)" 
+                                               To="1" Duration="0:0:0.15"/>
+                                <DoubleAnimation Storyboard.TargetProperty="(UIElement.RenderTransform).(ScaleTransform.ScaleY)" 
+                                               To="1" Duration="0:0:0.15"/>
+                            </Storyboard>
+                        </BeginStoryboard>
+                    </Trigger.ExitActions>
+                </Trigger>
+            </Style.Triggers>
+        </Style>
+
+        <Style x:Key="UnselectedTagLongTermStyle" BasedOn="{StaticResource InteractiveTag}" TargetType="Border">
+            <Setter Property="Background" Value="#0F10B981"/>
+            <Setter Property="BorderBrush" Value="#3010B981"/>
+        </Style>
+
+        <Style x:Key="UnselectedTagShortTermStyle" BasedOn="{StaticResource InteractiveTag}" TargetType="Border">
+            <Setter Property="Background" Value="#0F3B82F6"/>
+            <Setter Property="BorderBrush" Value="#303B82F6"/>
+        </Style>
+
+        <Style x:Key="UnselectedTagRecurringStyle" BasedOn="{StaticResource InteractiveTag}" TargetType="Border">
+            <Setter Property="Background" Value="#0F8B5CF6"/>
+            <Setter Property="BorderBrush" Value="#308B5CF6"/>
+        </Style>
+
+        <Style x:Key="SelectedTagLongTermStyle" BasedOn="{StaticResource InteractiveTag}" TargetType="Border">
+            <Setter Property="Background" Value="{DynamicResource TagLongTermBg}"/>
+            <Setter Property="BorderBrush" Value="{DynamicResource TagLongTermBorder}"/>
+            <Setter Property="BorderThickness" Value="2"/>
+            <Setter Property="Effect">
+                <Setter.Value>
+                    <DropShadowEffect Color="#10B981" Opacity="0.15" BlurRadius="8" ShadowDepth="1"/>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <Style x:Key="SelectedTagShortTermStyle" BasedOn="{StaticResource InteractiveTag}" TargetType="Border">
+            <Setter Property="Background" Value="{DynamicResource TagShortTermBg}"/>
+            <Setter Property="BorderBrush" Value="{DynamicResource TagShortTermBorder}"/>
+            <Setter Property="BorderThickness" Value="2"/>
+            <Setter Property="Effect">
+                <Setter.Value>
+                    <DropShadowEffect Color="#3B82F6" Opacity="0.15" BlurRadius="8" ShadowDepth="1"/>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <Style x:Key="SelectedTagRecurringStyle" BasedOn="{StaticResource InteractiveTag}" TargetType="Border">
+            <Setter Property="Background" Value="{DynamicResource TagRecurringBg}"/>
+            <Setter Property="BorderBrush" Value="{DynamicResource TagRecurringBorder}"/>
+            <Setter Property="BorderThickness" Value="2"/>
+            <Setter Property="Effect">
+                <Setter.Value>
+                    <DropShadowEffect Color="#8B5CF6" Opacity="0.15" BlurRadius="8" ShadowDepth="1"/>
+                </Setter.Value>
+            </Setter>
+        </Style>
+    </Window.Resources>
+    <Grid Margin="24" Background="{DynamicResource Background}">
+        <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
+            <ScrollViewer.Resources>
+                <Style x:Key="ThinScrollBar" TargetType="ScrollBar">
+                    <Setter Property="Width" Value="6"/>
+                    <Setter Property="MinWidth" Value="0"/>
+                    <Setter Property="MaxWidth" Value="6"/>
+                    <Setter Property="Margin" Value="0"/>
+                    <Setter Property="Padding" Value="0"/>
+                    <Setter Property="Background" Value="Transparent"/>
+                    <Setter Property="BorderThickness" Value="0"/>
+                    <Style.Triggers>
+                        <Trigger Property="IsMouseOver" Value="True">
+                            <Setter Property="Width" Value="10"/>
+                            <Setter Property="MaxWidth" Value="10"/>
+                        </Trigger>
+                    </Style.Triggers>
+                </Style>
+            </ScrollViewer.Resources>
+            <ScrollViewer.Style>
+                <Style TargetType="ScrollViewer">
+                    <Setter Property="Template">
+                        <Setter.Value>
+                            <ControlTemplate TargetType="ScrollViewer">
+                                <Grid>
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="*"/>
+                                        <ColumnDefinition Width="Auto"/>
+                                    </Grid.ColumnDefinitions>
+                                    <ScrollContentPresenter Grid.Column="0" Content="{TemplateBinding Content}"/>
+                                    <ScrollBar x:Name="PART_VerticalScrollBar" Grid.Column="1" 
+                                               Orientation="Vertical" 
+                                               Value="{TemplateBinding VerticalOffset}" 
+                                               Maximum="{TemplateBinding ScrollableHeight}" 
+                                               ViewportSize="{TemplateBinding ViewportHeight}" 
+                                               Visibility="{TemplateBinding ComputedVerticalScrollBarVisibility}"
+                                               Style="{StaticResource ThinScrollBar}"/>
+                                </Grid>
+                            </ControlTemplate>
+                        </Setter.Value>
+                    </Setter>
+                </Style>
+            </ScrollViewer.Style>
+            <StackPanel Margin="0,0,16,0">
+                <StackPanel Orientation="Horizontal" Margin="0,0,0,8">
+                    <Ellipse Width="5" Height="5" Fill="{DynamicResource AccentColor}" Margin="0,0,8,0" VerticalAlignment="Center"/>
+                    <TextBlock Text="目标标题" FontSize="15" FontWeight="SemiBold" VerticalAlignment="Center" Foreground="{DynamicResource TextPrimary}"/>
+                    <StackPanel x:Name="GoalTypeSelector" Orientation="Horizontal" Margin="24,0,0,0" VerticalAlignment="Center">
+                        <Border x:Name="LongTermTag" Style="{StaticResource UnselectedTagLongTermStyle}" Margin="0,0,8,0" MouseLeftButtonDown="GoalTypeTag_Click">
+                            <TextBlock Text="长远" FontSize="12" Foreground="#10B981" FontWeight="SemiBold"/>
+                        </Border>
+                        <Border x:Name="ShortTermTag" Style="{StaticResource UnselectedTagShortTermStyle}" Margin="0,0,8,0" MouseLeftButtonDown="GoalTypeTag_Click">
+                            <TextBlock Text="短期" FontSize="12" Foreground="#3B82F6" FontWeight="SemiBold"/>
+                        </Border>
+                        <Border x:Name="RecurringTag" Style="{StaticResource UnselectedTagRecurringStyle}" MouseLeftButtonDown="GoalTypeTag_Click">
+                            <TextBlock Text="重复" FontSize="12" Foreground="#8B5CF6" FontWeight="SemiBold"/>
+                        </Border>
+                    </StackPanel>
+                </StackPanel>
+                <Border Style="{StaticResource InteractiveInputBorder}">
+                    <TextBox x:Name="TitleTextBox" MinHeight="48" BorderBrush="Transparent" BorderThickness="0" Padding="12,14,12,14" FontSize="15" VerticalContentAlignment="Center" Background="Transparent" Foreground="{DynamicResource TextPrimary}" CaretBrush="{DynamicResource TextPrimary}"/>
+                </Border>
+                
+                <StackPanel Orientation="Horizontal" Margin="0,20,0,10">
+                    <Ellipse Width="5" Height="5" Fill="{DynamicResource AccentColor}" Margin="0,0,8,0" VerticalAlignment="Center"/>
+                    <TextBlock Text="目标描述" FontSize="15" FontWeight="SemiBold" Foreground="{DynamicResource TextPrimary}" VerticalAlignment="Center"/>
+                </StackPanel>
+                <Border Style="{StaticResource InteractiveInputBorder}">
+                    <TextBox x:Name="DescriptionTextBox" MinHeight="100" BorderBrush="Transparent" BorderThickness="0" Padding="12" FontSize="15" TextWrapping="Wrap" AcceptsReturn="True" VerticalContentAlignment="Top" Background="Transparent" Foreground="{DynamicResource TextPrimary}" CaretBrush="{DynamicResource TextPrimary}"/>
+                </Border>
+                
+                <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,30,0,0">
+                    <Button x:Name="CancelButton" Content="取消" Width="90" Height="40" Background="{DynamicResource HoverColor}" Foreground="{DynamicResource TextSecondary}" Margin="0,0,14,0" Click="CancelButton_Click" Style="{StaticResource InteractiveButton}">
+                        <Button.Template>
+                            <ControlTemplate TargetType="Button">
+                                <Border CornerRadius="10" Background="{TemplateBinding Background}">
+                                    <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                </Border>
+                            </ControlTemplate>
+                        </Button.Template>
+                    </Button>
+                    <Button x:Name="AddButton" Content="添加" Width="90" Height="40" Background="{DynamicResource AccentColor}" Foreground="White" Click="AddButton_Click" Style="{StaticResource InteractiveButton}">
+                        <Button.Template>
+                            <ControlTemplate TargetType="Button">
+                                <Border CornerRadius="10" Background="{TemplateBinding Background}">
+                                    <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                </Border>
+                            </ControlTemplate>
+                        </Button.Template>
+                    </Button>
+                </StackPanel>
+            </StackPanel>
+        </ScrollViewer>
+    </Grid>
+</Window>
