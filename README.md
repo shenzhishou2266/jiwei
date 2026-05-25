@@ -15,25 +15,21 @@
 
 ## 应用截图
 
-| 计时器                        | 番茄钟                        |
-| -------------------------- | -------------------------- |
-| ![计时器](screenshot/计时器.png) | ![番茄钟](screenshot/番茄钟.png) |
-
-| 目标管理                           | 统计页面                         |
-| ------------------------------ | ---------------------------- |
-| ![目标管理](screenshot/目标管理页面.png) | ![统计页面](screenshot/统计页面.png) |
-
-| 热力图                        | 日报/周报/月报/年报                  |
-| -------------------------- | ---------------------------- |
-| ![热力图](screenshot/热力图.png) | ![日周年报](screenshot/日周年报.png) |
-
-| 时间线                          | 悬浮窗                          |
-| ---------------------------- | ---------------------------- |
-| ![时间线](screenshot/时间线页面.png) | ![悬浮窗](screenshot/悬浮窗页面.png) |
-
-| 设置页面                       | <br /> |
-| -------------------------- | ------ |
-| ![设置](screenshot/设置页面.png) | <br /> |
+<table>
+  <tr>
+    <td align="center"><img src="screenshot/番茄钟.png" width="200"><br><sub>番茄钟</sub></td>
+    <td align="center"><img src="screenshot/统计页面.png" width="200"><br><sub>统计页面</sub></td>
+    <td align="center"><img src="screenshot/目标管理页面.png" width="200"><br><sub>目标管理</sub></td>
+    <td align="center"><img src="screenshot/设置页面.png" width="200"><br><sub>设置页面</sub></td>
+  </tr>
+  <tr>
+    <td align="center"><img src="screenshot/计时器.png" width="200"><br><sub>计时器</sub></td>
+    <td align="center"><img src="screenshot/热力图.png" width="200"><br><sub>热力图</sub></td>
+    <td align="center"><img src="screenshot/日周年报.png" width="200"><br><sub>日周月报</sub></td>
+    <td align="center"><img src="screenshot/时间线页面.png" width="200"><br><sub>时间线</sub></td>
+    <td align="center"><img src="screenshot/悬浮窗页面.png" width="200"><br><sub>悬浮窗</sub></td>
+  </tr>
+</table>
 
 ## 技术栈
 
