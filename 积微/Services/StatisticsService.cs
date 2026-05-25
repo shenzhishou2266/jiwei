@@ -150,7 +150,8 @@ namespace 积微.Services
             try
             {
                 var goals = await DataStorageService.LoadGoalsAsync();
-                var sessions = _cachedSessions ?? await LoadSessionsInternalAsync();
+                // 始终从磁盘读取，避免使用可能已过期的内存缓存覆盖磁盘数据
+                var sessions = await LoadSessionsInternalAsync();
 
                 var ids = new HashSet<string>();
                 var titles = new HashSet<string>();
