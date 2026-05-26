@@ -178,12 +178,21 @@ namespace 积微.Views
             {
                 if (Goal != null)
                 {
-                    Goal.Title = TitleTextBox.Text.Trim();
+                    string oldTitle = Goal.Title;
+                    string newTitle = TitleTextBox.Text.Trim();
+                    Goal.Title = newTitle;
                     Goal.Description = DescriptionTextBox.Text.Trim();
                     Goal.ProcessAnalysis = ProcessAnalysisTextBox.Text.Trim();
                     Goal.ResultFeedback = ResultFeedbackTextBox.Text.Trim();
                     Goal.Type = _pendingGoalType;
                     await DataStorageService.SaveGoalsAsync(GoalsPage.Goals);
+
+                    // 如果目标名称发生变更，同步更新所有历史会话记录中的目标名称
+                    if (oldTitle != newTitle)
+                    {
+                        await StatisticsService.UpdateSessionGoalTitleAsync(Goal.Id, newTitle);
+                    }
+
                     GoalUpdated?.Invoke(this, EventArgs.Empty);
                 }
                 Close();

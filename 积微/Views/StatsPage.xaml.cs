@@ -419,9 +419,9 @@ namespace 积微.Views
             const int fR = 20, fG = 184, fB = 166;   // #14B8A6 时间碎片色
             const int eR = 243, eG = 244, eB = 246;   // #F3F4F6 无活动色
 
-            // 强度映射：120分钟(2小时)达到满强度
-            double p = Math.Min(1.0, pomodoroMinutes / 120.0);
-            double f = Math.Min(1.0, fragmentMinutes / 120.0);
+            // 强度映射：360分钟(6小时)达到满强度
+            double p = Math.Min(1.0, pomodoroMinutes / 360.0);
+            double f = Math.Min(1.0, fragmentMinutes / 360.0);
             double total = p + f;
 
             if (total <= 0)
@@ -466,9 +466,9 @@ namespace 积微.Views
             // 7个渐变色块：纯碎片 → 混合 → 纯番茄钟
             for (int i = 0; i < 7; i++)
             {
-                // fragmentMinutes 从 120→0，pomodoroMinutes 从 0→120
-                int fMin = (6 - i) * 20; // 120, 100, 80, 60, 40, 20, 0
-                int pMin = i * 20;        // 0, 20, 40, 60, 80, 100, 120
+                // fragmentMinutes 从 360→0，pomodoroMinutes 从 0→360
+                int fMin = (6 - i) * 60; // 360, 300, 240, 180, 120, 60, 0
+                int pMin = i * 60;        // 0, 60, 120, 180, 240, 300, 360
 
                 var color = BlendActivityColor(pMin, fMin);
                 var block = new SWC.Border

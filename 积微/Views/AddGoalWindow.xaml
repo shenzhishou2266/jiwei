@@ -6,6 +6,7 @@
         Width="480"
         Height="440"
         WindowStartupLocation="CenterOwner"
+        FocusManager.FocusedElement="{Binding ElementName=TitleTextBox}"
         Background="{DynamicResource Background}">
     <Window.Resources>
         <Style x:Key="ThinScrollBar" TargetType="ScrollBar">

@@ -28,6 +28,8 @@ namespace 积微.Controls
 
         private ObservableCollection<SWI.BitmapImage> _previewImages = new ObservableCollection<SWI.BitmapImage>();
         private List<string> _previewImageBase64List = new List<string>();
+        private bool _suppressTimerDisplayUpdate = false;
+        private bool _suppressScrollerValueChanged = false;
 
         public TimerControl()
         {
@@ -81,18 +83,23 @@ namespace 积微.Controls
 
         private void TimerService_PropertyChanged(object? sender, System.ComponentModel.PropertyChangedEventArgs e)
         {
-            if (e.PropertyName == nameof(TimerService.TimeDisplay) ||
+            if ((e.PropertyName == nameof(TimerService.TimeDisplay) ||
                 e.PropertyName == nameof(TimerService.Days) ||
                 e.PropertyName == nameof(TimerService.Hours) ||
                 e.PropertyName == nameof(TimerService.Minutes) ||
                 e.PropertyName == nameof(TimerService.Seconds))
+                && !_suppressTimerDisplayUpdate)
             {
                 UpdateTimerDisplay();
             }
             else if (e.PropertyName == nameof(TimerService.IsActive))
             {
                 UpdatePlayPauseIcon();
-                SetScrollersEditable(!_timerService.IsActive);
+                UpdateScrollersEditable();
+            }
+            else if (e.PropertyName == nameof(TimerService.IsSessionStarted))
+            {
+                UpdateScrollersEditable();
             }
             else if (e.PropertyName == nameof(TimerService.IsStopwatchMode))
             {
@@ -472,25 +479,25 @@ namespace 积微.Controls
 
         private void OnDay1ValueChanged(object sender, int value)
         {
-            if (!_timerService.IsActive)
+            if (!_timerService.IsActive && !_suppressScrollerValueChanged)
                 UpdateFromScrollers();
         }
 
         private void OnDay2ValueChanged(object sender, int value)
         {
-            if (!_timerService.IsActive)
+            if (!_timerService.IsActive && !_suppressScrollerValueChanged)
                 UpdateFromScrollers();
         }
 
         private void OnDay3ValueChanged(object sender, int value)
         {
-            if (!_timerService.IsActive)
+            if (!_timerService.IsActive && !_suppressScrollerValueChanged)
                 UpdateFromScrollers();
         }
 
         private void OnHour1ValueChanged(object sender, int value)
         {
-            if (!_timerService.IsActive)
+            if (!_timerService.IsActive && !_suppressScrollerValueChanged)
             {
                 SetScrollersMaxValues();
                 UpdateFromScrollers();
@@ -499,31 +506,31 @@ namespace 积微.Controls
 
         private void OnHour2ValueChanged(object sender, int value)
         {
-            if (!_timerService.IsActive)
+            if (!_timerService.IsActive && !_suppressScrollerValueChanged)
                 UpdateFromScrollers();
         }
 
         private void OnMinute1ValueChanged(object sender, int value)
         {
-            if (!_timerService.IsActive)
+            if (!_timerService.IsActive && !_suppressScrollerValueChanged)
                 UpdateFromScrollers();
         }
 
         private void OnMinute2ValueChanged(object sender, int value)
         {
-            if (!_timerService.IsActive)
+            if (!_timerService.IsActive && !_suppressScrollerValueChanged)
                 UpdateFromScrollers();
         }
 
         private void OnSecond1ValueChanged(object sender, int value)
         {
-            if (!_timerService.IsActive)
+            if (!_timerService.IsActive && !_suppressScrollerValueChanged)
                 UpdateFromScrollers();
         }
 
         private void OnSecond2ValueChanged(object sender, int value)
         {
-            if (!_timerService.IsActive)
+            if (!_timerService.IsActive && !_suppressScrollerValueChanged)
                 UpdateFromScrollers();
         }
 
@@ -588,6 +595,58 @@ namespace 积微.Controls
             if (Seconds2.CurrentValue != s2) Seconds2.CurrentValue = s2;
         }
 
+        /// <summary>按指定方向更新所有滚数字控件。内部屏蔽中间态 ValueChanged，避免逐位设值时的数据污染和动画竞争。</summary>
+        private int GetTotalSeconds() =>
+            _timerService.Days * 86400 + _timerService.Hours * 3600 + _timerService.Minutes * 60 + _timerService.Seconds;
+
+        private void SetScrollersFromService(int oldTotalSeconds)
+        {
+            int newTotalSeconds = GetTotalSeconds();
+            ScrollDirection direction = newTotalSeconds >= oldTotalSeconds ? ScrollDirection.Up : ScrollDirection.Down;
+
+            _suppressScrollerValueChanged = true;
+
+            int days = _timerService.Days;
+            int hours = _timerService.Hours;
+            int minutes = _timerService.Minutes;
+            int seconds = _timerService.Seconds;
+
+            // 天数位 MaxValue 始终为 9
+            Days1.MaxValue = 9;
+            Days2.MaxValue = 9;
+            Days3.MaxValue = 9;
+            Days1.SetValueWithScroll(days / 100, direction);
+            Days2.SetValueWithScroll((days / 10) % 10, direction);
+            Days3.SetValueWithScroll(days % 10, direction);
+
+            // 先设小时十位，再根据新值设个位 MaxValue（避免被旧值截断）
+            int hoursTens = hours / 10;
+            int hoursOnes = hours % 10;
+            Hours1.MaxValue = 2;
+            Hours1.SetValueWithScroll(hoursTens, direction);
+            Hours2.MaxValue = hoursTens == 2 ? 3 : 9;
+            Hours2.SetValueWithScroll(hoursOnes, direction);
+
+            // 分钟
+            int minTens = minutes / 10;
+            int minOnes = minutes % 10;
+            Minutes1.MaxValue = 5;
+            Minutes1.SetValueWithScroll(minTens, direction);
+            Minutes2.SetValueWithScroll(minOnes, direction);
+
+            // 秒
+            int secTens = seconds / 10;
+            int secOnes = seconds % 10;
+            Seconds1.MaxValue = 5;
+            Seconds1.SetValueWithScroll(secTens, direction);
+            Seconds2.SetValueWithScroll(secOnes, direction);
+
+            _suppressScrollerValueChanged = false;
+
+            // 所有滚轮设完后，统一同步一次 TimerService（用最终的正确值）
+            UpdateFromScrollers();
+        }
+
         private void UpdatePlayPauseIcon()
         {
             if (_timerService.IsActive)
@@ -634,8 +693,9 @@ namespace 积微.Controls
             }
         }
 
-        private void SetScrollersEditable(bool editable)
+        private void UpdateScrollersEditable()
         {
+            bool editable = !_timerService.IsActive && !_timerService.IsSessionStarted;
             Days1.IsEditable = editable;
             Days2.IsEditable = editable;
             Days3.IsEditable = editable;
@@ -649,70 +709,35 @@ namespace 积微.Controls
 
         private void StopwatchButton_Click(object sender, SW.RoutedEventArgs e)
         {
+            _suppressTimerDisplayUpdate = true;
+            int oldSeconds = GetTotalSeconds();
             _timerService.SwitchToStopwatch();
-            SetScrollersMaxValues();
-
-            Days1.SetValueWithoutAnimation(0);
-            Days2.SetValueWithoutAnimation(0);
-            Days3.SetValueWithoutAnimation(0);
-            Hours1.SetValueWithoutAnimation(0);
-            Hours2.SetValueWithoutAnimation(0);
-            Minutes1.SetValueWithoutAnimation(0);
-            Minutes2.SetValueWithoutAnimation(0);
-            Seconds1.SetValueWithoutAnimation(0);
-            Seconds2.SetValueWithoutAnimation(0);
-            SetScrollersEditable(true);
-
+            SetScrollersFromService(oldSeconds);
+            _suppressTimerDisplayUpdate = false;
+            UpdateScrollersEditable();
             UpdateModeButtons();
-            UpdateTimerDisplay();
         }
 
         private void CountdownButton_Click(object sender, SW.RoutedEventArgs e)
         {
-            var settings = SettingsManager.Current;
+            _suppressTimerDisplayUpdate = true;
+            int oldSeconds = GetTotalSeconds();
             _timerService.SwitchToCountdown();
-            SetScrollersMaxValues();
-
-            int defaultDays = settings.CountdownDefaultDays;
-            int defaultHours = settings.CountdownDefaultHours;
-            int defaultMinutes = settings.CountdownDefaultMinutes;
-            int defaultSeconds = settings.CountdownDefaultSeconds;
-
-            Days1.SetValueWithoutAnimation(defaultDays / 100);
-            Days2.SetValueWithoutAnimation((defaultDays / 10) % 10);
-            Days3.SetValueWithoutAnimation(defaultDays % 10);
-            Hours1.SetValueWithoutAnimation(defaultHours / 10);
-            Hours2.SetValueWithoutAnimation(defaultHours % 10);
-            Minutes1.SetValueWithoutAnimation(defaultMinutes / 10);
-            Minutes2.SetValueWithoutAnimation(defaultMinutes % 10);
-            Seconds1.SetValueWithoutAnimation(defaultSeconds / 10);
-            Seconds2.SetValueWithoutAnimation(defaultSeconds % 10);
-            SetScrollersEditable(true);
-
+            SetScrollersFromService(oldSeconds);
+            _suppressTimerDisplayUpdate = false;
+            UpdateScrollersEditable();
             UpdateModeButtons();
-            UpdateTimerDisplay();
         }
 
         private void ResetButton_Click(object sender, SW.RoutedEventArgs e)
         {
+            _suppressTimerDisplayUpdate = true;
+            int oldSeconds = GetTotalSeconds();
             _timerService.ResetTimer();
-            SetScrollersEditable(true);
-            SetScrollersMaxValues();
+            SetScrollersFromService(oldSeconds);
 
-            int days = _timerService.Days;
-            int hours = _timerService.Hours;
-            int minutes = _timerService.Minutes;
-            int seconds = _timerService.Seconds;
-
-            Days1.SetValueWithoutAnimation(days / 100);
-            Days2.SetValueWithoutAnimation((days / 10) % 10);
-            Days3.SetValueWithoutAnimation(days % 10);
-            Hours1.SetValueWithoutAnimation(hours / 10);
-            Hours2.SetValueWithoutAnimation(hours % 10);
-            Minutes1.SetValueWithoutAnimation(minutes / 10);
-            Minutes2.SetValueWithoutAnimation(minutes % 10);
-            Seconds1.SetValueWithoutAnimation(seconds / 10);
-            Seconds2.SetValueWithoutAnimation(seconds % 10);
+            _suppressTimerDisplayUpdate = false;
+            UpdateScrollersEditable();
         }
 
         private void PlayPauseButton_Click(object sender, SW.RoutedEventArgs e)
@@ -734,7 +759,7 @@ namespace 积微.Controls
         private void StopButton_Click(object sender, SW.RoutedEventArgs e)
         {
             _timerService.StopTimerWithRecord();
-            SetScrollersEditable(true);
+            UpdateScrollersEditable();
         }
 
         private void ModeSwitchButton_Click(object sender, SW.RoutedEventArgs e)
@@ -805,7 +830,17 @@ namespace 积微.Controls
 
                 menuItem.PreviewMouseLeftButtonDown += (sender, e) =>
                 {
-                    var selectedGoal = (Goal)(sender as SWC.MenuItem).Tag;
+                    var item = (SWC.MenuItem)sender;
+                    // 若点击来自子菜单项则跳过，由子项自己的handler处理
+                    var source = e.OriginalSource as SW.DependencyObject;
+                    while (source != null)
+                    {
+                        if (source is SWC.MenuItem child && child != item)
+                            return;
+                        source = SWM.VisualTreeHelper.GetParent(source);
+                    }
+
+                    var selectedGoal = (Goal)item.Tag;
                     SelectGoal(selectedGoal);
                 };
 
@@ -823,44 +858,29 @@ namespace 积微.Controls
 
         private void SelectGoal(Goal selectedGoal)
         {
+            // 同一个目标且计时器未运行，无需重新初始化，避免不必要的滚动
+            if (CurrentGoal?.Id == selectedGoal.Id && !_timerService.IsActive)
+                return;
+
             CurrentGoal = selectedGoal;
+
+            // 先停止计时器，确保 IsActive=false，使 CurrentGoal setter 能正确更新时间
+            _timerService.StopTimer();
+
+            _suppressTimerDisplayUpdate = true;
+            int oldSeconds = GetTotalSeconds();
             _timerService.CurrentGoal = selectedGoal;
 
-            _timerService.StopTimer();
-            SetScrollersEditable(true);
-
-            if (_timerService.IsStopwatchMode && selectedGoal.Id != "global-goal")
+            if (!_timerService.IsStopwatchMode)
             {
-                int totalSeconds = selectedGoal.TotalElapsedSeconds;
-                int days = totalSeconds / 86400;
-                int remainingSeconds = totalSeconds % 86400;
-                int hours = remainingSeconds / 3600;
-                remainingSeconds = remainingSeconds % 3600;
-                int minutes = remainingSeconds / 60;
-                int seconds = remainingSeconds % 60;
-
-                _timerService.SetCurrentTime(days, hours, minutes, seconds);
-
-                SetScrollersMaxValues();
-                Days1.SetValueWithoutAnimation(days / 100);
-                Days2.SetValueWithoutAnimation((days / 10) % 10);
-                Days3.SetValueWithoutAnimation(days % 10);
-                Hours1.SetValueWithoutAnimation(hours / 10);
-                Hours2.SetValueWithoutAnimation(hours % 10);
-                Minutes1.SetValueWithoutAnimation(minutes / 10);
-                Minutes2.SetValueWithoutAnimation(minutes % 10);
-                Seconds1.SetValueWithoutAnimation(seconds / 10);
-                Seconds2.SetValueWithoutAnimation(seconds % 10);
+                // 倒计时模式切换目标时重置计时
+                _timerService.ResetTimer();
             }
-            else
-            {
-                // 全局目标在秒表模式从0开始
-                if (_timerService.IsStopwatchMode && selectedGoal.Id == "global-goal")
-                {
-                    _timerService.SetCurrentTime(0, 0, 0, 0);
-                }
-                UpdateTimerDisplay();
-            }
+
+            SetScrollersFromService(oldSeconds);
+            _suppressTimerDisplayUpdate = false;
+
+            UpdateScrollersEditable();
 
             UpdateGoalDisplay();
         }
@@ -869,7 +889,18 @@ namespace 积微.Controls
         {
             // 清除目标时设置为全局目标，但不显示
             CurrentGoal = GoalsPage.GlobalGoal;
+
+            _timerService.StopTimer();
+
+            _suppressTimerDisplayUpdate = true;
+            int oldSeconds = GetTotalSeconds();
             _timerService.CurrentGoal = GoalsPage.GlobalGoal;
+            SetScrollersFromService(oldSeconds);
+            _suppressTimerDisplayUpdate = false;
+
+            UpdateScrollersEditable();
+
+            UpdateGoalDisplay();
         }
 
         private void UpdateWhiteNoiseIcon()

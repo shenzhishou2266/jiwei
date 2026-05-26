@@ -35,6 +35,17 @@ namespace 积微.Services
         private int _sessionStartSeconds;
         private bool _sessionStarted;
 
+        /// <summary>是否有进行中的会话（区分暂停 vs 未开始/已结束）</summary>
+        public bool IsSessionStarted
+        {
+            get => _sessionStarted;
+            private set
+            {
+                _sessionStarted = value;
+                OnPropertyChanged();
+            }
+        }
+
         /// <summary>属性变更事件</summary>
         public event PropertyChangedEventHandler? PropertyChanged;
 
@@ -165,10 +176,7 @@ namespace 积微.Services
                     }
                     else
                     {
-                        _days = _countdownDays;
-                        _hours = _countdownHours;
-                        _minutes = _countdownMinutes;
-                        _seconds = _countdownSeconds;
+                        SyncDisplayToCountdown();
                     }
                     OnPropertyChanged(nameof(TimeDisplay));
                     OnPropertyChanged(nameof(ShortTimeDisplay));
@@ -190,11 +198,7 @@ namespace 积微.Services
 
         private TimerService()
         {
-            var settings = SettingsManager.Current;
-            _countdownDays = settings.CountdownDefaultDays;
-            _countdownHours = settings.CountdownDefaultHours;
-            _countdownMinutes = settings.CountdownDefaultMinutes;
-            _countdownSeconds = settings.CountdownDefaultSeconds;
+            LoadCountdownFromSettings();
             _timer = new DispatcherTimer();
             _timer.Interval = TimeSpan.FromSeconds(1);
             _timer.Tick += Timer_Tick;
@@ -281,7 +285,7 @@ namespace 积微.Services
                 int elapsedSeconds = _sessionStartSeconds;
 
                 // 如果会话还没开始（直接完成），则使用_start时间
-                if (!_sessionStarted)
+                if (!IsSessionStarted)
                 {
                     elapsedDays = _startDays;
                     elapsedHours = _startHours;
@@ -306,7 +310,7 @@ namespace 积微.Services
             }
 
             // 重置会话状态
-            _sessionStarted = false;
+            IsSessionStarted = false;
             _sessionStartDays = 0;
             _sessionStartHours = 0;
             _sessionStartMinutes = 0;
@@ -366,13 +370,13 @@ namespace 积微.Services
                 _startSeconds = _seconds;
 
                 // 如果是第一次开始整个会话，则设置会话开始时间
-                if (!_sessionStarted)
+                if (!IsSessionStarted)
                 {
                     _sessionStartDays = _days;
                     _sessionStartHours = _hours;
                     _sessionStartMinutes = _minutes;
                     _sessionStartSeconds = _seconds;
-                    _sessionStarted = true;
+                    IsSessionStarted = true;
                 }
 
                 IsActive = true;
@@ -397,7 +401,7 @@ namespace 积微.Services
         {
             try
             {
-                if (!IsActive && !_sessionStarted) return;
+                if (!IsActive && !IsSessionStarted) return;
 
                 int elapsedSeconds;
                 if (IsStopwatchMode)
@@ -433,7 +437,7 @@ namespace 积微.Services
                 }
 
                 // 重置会话标志，为下一次会话做准备
-                _sessionStarted = false;
+                IsSessionStarted = false;
             }
             catch (Exception ex)
             {
@@ -441,30 +445,66 @@ namespace 积微.Services
             }
         }
 
-        /// <summary>重置计时器</summary>
+        /// <summary>将当前显示时间同步为倒计时设定值。</summary>
+        private void SyncDisplayToCountdown()
+        {
+            _days = _countdownDays;
+            _hours = _countdownHours;
+            _minutes = _countdownMinutes;
+            _seconds = _countdownSeconds;
+        }
+
+        /// <summary>从设置加载默认倒计时时间，同步到设定值和显示值。</summary>
+        private void LoadCountdownFromSettings()
+        {
+            var settings = SettingsManager.Current;
+            _countdownDays = settings.CountdownDefaultDays;
+            _countdownHours = settings.CountdownDefaultHours;
+            _countdownMinutes = settings.CountdownDefaultMinutes;
+            _countdownSeconds = settings.CountdownDefaultSeconds;
+            SyncDisplayToCountdown();
+        }
+
+        /// <summary>
+        /// 重置计时器。
+        /// 秒表：会话进行中重置为会话开始值（目标累积时长），结束后重置为 0。
+        /// 倒计时：会话进行中重置为手动调整值，结束后重置为设置默认值。
+        /// </summary>
         public void ResetTimer()
         {
+            bool hadActiveSession = IsSessionStarted;
+            int savedStartDays = _sessionStartDays;
+            int savedStartHours = _sessionStartHours;
+            int savedStartMinutes = _sessionStartMinutes;
+            int savedStartSeconds = _sessionStartSeconds;
+
             StopTimer();
-            _sessionStarted = false;
-            _sessionStartDays = 0;
-            _sessionStartHours = 0;
-            _sessionStartMinutes = 0;
-            _sessionStartSeconds = 0;
+            IsSessionStarted = false;
+            _sessionStartDays = _sessionStartHours = _sessionStartMinutes = _sessionStartSeconds = 0;
 
             if (IsStopwatchMode)
             {
-                _days = 0;
-                _hours = 0;
-                _minutes = 0;
-                _seconds = 0;
+                if (hadActiveSession)
+                {
+                    _days = savedStartDays;
+                    _hours = savedStartHours;
+                    _minutes = savedStartMinutes;
+                    _seconds = savedStartSeconds;
+                }
+                else
+                {
+                    _days = _hours = _minutes = _seconds = 0;
+                }
+            }
+            else if (hadActiveSession)
+            {
+                SyncDisplayToCountdown();
             }
             else
             {
-                _days = _countdownDays;
-                _hours = _countdownHours;
-                _minutes = _countdownMinutes;
-                _seconds = _countdownSeconds;
+                LoadCountdownFromSettings();
             }
+
             OnPropertyChanged(nameof(TimeDisplay));
             OnPropertyChanged(nameof(ShortTimeDisplay));
         }
@@ -473,11 +513,8 @@ namespace 积微.Services
         public void SwitchToStopwatch()
         {
             StopTimer();
-            _sessionStarted = false;
-            _sessionStartDays = 0;
-            _sessionStartHours = 0;
-            _sessionStartMinutes = 0;
-            _sessionStartSeconds = 0;
+            IsSessionStarted = false;
+            _sessionStartDays = _sessionStartHours = _sessionStartMinutes = _sessionStartSeconds = 0;
             IsStopwatchMode = true;
 
             // 如果有目标（非全局目标），从目标的累计时间开始
@@ -512,16 +549,10 @@ namespace 积微.Services
         public void SwitchToCountdown()
         {
             StopTimer();
-            _sessionStarted = false;
-            _sessionStartDays = 0;
-            _sessionStartHours = 0;
-            _sessionStartMinutes = 0;
-            _sessionStartSeconds = 0;
+            IsSessionStarted = false;
+            _sessionStartDays = _sessionStartHours = _sessionStartMinutes = _sessionStartSeconds = 0;
             IsStopwatchMode = false;
-            _days = _countdownDays;
-            _hours = _countdownHours;
-            _minutes = _countdownMinutes;
-            _seconds = _countdownSeconds;
+            SyncDisplayToCountdown();
             OnPropertyChanged(nameof(TimeDisplay));
             OnPropertyChanged(nameof(ShortTimeDisplay));
         }

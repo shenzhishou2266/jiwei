@@ -8,6 +8,17 @@ using SWMA = System.Windows.Media.Animation;
 
 namespace 积微.Controls
 {
+    /// <summary>滚动方向枚举。</summary>
+    public enum ScrollDirection
+    {
+        /// <summary>自动根据数值变化方向决定。</summary>
+        Auto,
+        /// <summary>强制向上滚动。</summary>
+        Up,
+        /// <summary>强制向下滚动。</summary>
+        Down
+    }
+
     /// <summary>数字滚动选择控件，支持上下滚动切换数值。</summary>
     public partial class NumberScroll : SWC.UserControl, INotifyPropertyChanged
     {
@@ -17,6 +28,7 @@ namespace 积微.Controls
         private double _fontSize = 48;
         private double _digitHeight = 70;
         private double _digitWidth = 60;
+        private int _animationVersion = 0;
         private List<SWC.TextBlock> _normalDigits = new List<SWC.TextBlock>();
         private SWC.TextBlock _upperExtraDigit = null;
         private SWC.TextBlock _lowerExtraDigit = null;
@@ -40,6 +52,7 @@ namespace 积微.Controls
                 int newValue = Math.Clamp(value, 0, _maxValue);
                 if (newValue != _currentValue)
                 {
+                    _animationVersion++;
                     int oldValue = _currentValue;
                     _currentValue = newValue;
                     AnimateToValue(oldValue, _currentValue);
@@ -295,8 +308,10 @@ namespace 积微.Controls
                 EasingFunction = new SWMA.QuadraticEase { EasingMode = SWMA.EasingMode.EaseOut }
             };
 
+            int expectedVersion = _animationVersion;
             animation.Completed += (s, e) =>
             {
+                if (_animationVersion != expectedVersion) return;
                 SetPosition(snapToValue);
             };
 
@@ -309,6 +324,127 @@ namespace 积微.Controls
             int clampedValue = Math.Clamp(value, 0, _maxValue);
             _currentValue = clampedValue;
             SetPosition(clampedValue);
+        }
+
+        /// <summary>设置数值并播放滚动动画，可指定滚动方向。</summary>
+        public void SetValueWithScroll(int value, ScrollDirection direction = ScrollDirection.Auto)
+        {
+            int newValue = Math.Clamp(value, 0, _maxValue);
+            if (newValue == _currentValue) return;
+
+            _animationVersion++;
+            int oldValue = _currentValue;
+            _currentValue = newValue;
+
+            if (direction == ScrollDirection.Up)
+            {
+                AnimateWithDirection(oldValue, newValue, scrollUp: true);
+            }
+            else if (direction == ScrollDirection.Down)
+            {
+                AnimateWithDirection(oldValue, newValue, scrollUp: false);
+            }
+            else
+            {
+                AnimateToValue(oldValue, newValue);
+            }
+
+            ValueChanged?.Invoke(this, _currentValue);
+        }
+
+        /// <summary>按指定方向执行动画，必要时通过额外数字循环。</summary>
+        private void AnimateWithDirection(int fromValue, int toValue, bool scrollUp)
+        {
+            if (scrollUp)
+            {
+                if (toValue >= fromValue)
+                {
+                    AnimateWithoutSnap(fromValue * -_digitHeight, toValue * -_digitHeight);
+                }
+                else
+                {
+                    // 需要向上循环：先滚到 MaxValue 再跳回 0 继续滚到目标
+                    double fromOffset = fromValue * -_digitHeight;
+                    double loopOffset = -(_maxValue + 1) * _digitHeight;
+
+                    SWM.TranslateTransform transform = new SWM.TranslateTransform(0, fromOffset);
+                    NumbersCanvas.RenderTransform = transform;
+
+                    SWMA.DoubleAnimation anim1 = new SWMA.DoubleAnimation
+                    {
+                        To = loopOffset,
+                        Duration = new SW.Duration(TimeSpan.FromMilliseconds(120)),
+                        EasingFunction = new SWMA.QuadraticEase { EasingMode = SWMA.EasingMode.EaseOut }
+                    };
+
+                    int targetVal = toValue;
+                    int expectedVersion = _animationVersion;
+                    anim1.Completed += (s, e) =>
+                    {
+                        if (_animationVersion != expectedVersion) return;
+                        SetPosition(0);
+                        if (targetVal > 0)
+                        {
+                            SWM.TranslateTransform t2 = new SWM.TranslateTransform(0, 0);
+                            NumbersCanvas.RenderTransform = t2;
+                            SWMA.DoubleAnimation anim2 = new SWMA.DoubleAnimation
+                            {
+                                To = targetVal * -_digitHeight,
+                                Duration = new SW.Duration(TimeSpan.FromMilliseconds(120)),
+                                EasingFunction = new SWMA.QuadraticEase { EasingMode = SWMA.EasingMode.EaseOut }
+                            };
+                            t2.BeginAnimation(SWM.TranslateTransform.YProperty, anim2);
+                        }
+                    };
+
+                    transform.BeginAnimation(SWM.TranslateTransform.YProperty, anim1);
+                }
+            }
+            else // scroll down
+            {
+                if (toValue <= fromValue)
+                {
+                    AnimateWithoutSnap(fromValue * -_digitHeight, toValue * -_digitHeight);
+                }
+                else
+                {
+                    // 需要向下循环：先滚到 0 再跳回 MaxValue 继续滚到目标
+                    double fromOffset = fromValue * -_digitHeight;
+                    double loopOffset = _digitHeight;
+
+                    SWM.TranslateTransform transform = new SWM.TranslateTransform(0, fromOffset);
+                    NumbersCanvas.RenderTransform = transform;
+
+                    SWMA.DoubleAnimation anim1 = new SWMA.DoubleAnimation
+                    {
+                        To = loopOffset,
+                        Duration = new SW.Duration(TimeSpan.FromMilliseconds(120)),
+                        EasingFunction = new SWMA.QuadraticEase { EasingMode = SWMA.EasingMode.EaseOut }
+                    };
+
+                    int targetVal = toValue;
+                    int expectedVersion = _animationVersion;
+                    anim1.Completed += (s, e) =>
+                    {
+                        if (_animationVersion != expectedVersion) return;
+                        SetPosition(_maxValue);
+                        if (targetVal < _maxValue)
+                        {
+                            SWM.TranslateTransform t2 = new SWM.TranslateTransform(0, _maxValue * -_digitHeight);
+                            NumbersCanvas.RenderTransform = t2;
+                            SWMA.DoubleAnimation anim2 = new SWMA.DoubleAnimation
+                            {
+                                To = targetVal * -_digitHeight,
+                                Duration = new SW.Duration(TimeSpan.FromMilliseconds(120)),
+                                EasingFunction = new SWMA.QuadraticEase { EasingMode = SWMA.EasingMode.EaseOut }
+                            };
+                            t2.BeginAnimation(SWM.TranslateTransform.YProperty, anim2);
+                        }
+                    };
+
+                    transform.BeginAnimation(SWM.TranslateTransform.YProperty, anim1);
+                }
+            }
         }
     }
 }

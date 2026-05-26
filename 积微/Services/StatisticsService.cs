@@ -234,7 +234,7 @@ namespace 积微.Services
             var sessions = await LoadSessionsAsync();
             var stats = new DailyStats { Date = date.Date };
 
-            var daySessions = sessions.Where(s => s.StartTime.Date == date.Date && s.GoalId != "global-goal").ToList();
+            var daySessions = sessions.Where(s => s.EndTime.Date == date.Date && s.GoalId != "global-goal").ToList();
 
             foreach (var session in daySessions)
             {
@@ -271,7 +271,7 @@ namespace 积微.Services
 
             var focusDates = sessions
                 .Where(s => s.Type == SessionType.Focus && s.GoalId != "global-goal")
-                .Select(s => s.StartTime.Date)
+                .Select(s => s.EndTime.Date)
                 .Distinct()
                 .OrderByDescending(d => d)
                 .ToList();
@@ -303,7 +303,7 @@ namespace 积微.Services
             var sessions = await LoadSessionsAsync();
             return sessions
                 .Where(s => s.Type == SessionType.Focus && s.GoalId != "global-goal")
-                .Select(s => s.StartTime.Date)
+                .Select(s => s.EndTime.Date)
                 .Distinct()
                 .Count();
         }
@@ -331,7 +331,7 @@ namespace 积微.Services
             var sessions = await LoadSessionsAsync();
             var stats = new DailyStats();
 
-            var monthSessions = sessions.Where(s => s.StartTime.Year == DateTime.Today.Year && s.StartTime.Month == DateTime.Today.Month && s.GoalId != "global-goal").ToList();
+            var monthSessions = sessions.Where(s => s.EndTime.Year == DateTime.Today.Year && s.EndTime.Month == DateTime.Today.Month && s.GoalId != "global-goal").ToList();
 
             foreach (var session in monthSessions)
             {
@@ -432,7 +432,7 @@ namespace 积微.Services
                 (s.TimerType == TimerSessionType.PomodoroFocus
                  || s.TimerType == TimerSessionType.Stopwatch
                  || s.TimerType == TimerSessionType.Countdown) &&
-                s.StartTime.Date == DateTime.Today &&
+                s.EndTime.Date == DateTime.Today &&
                 s.GoalId != "global-goal" &&
                 !string.IsNullOrEmpty(s.GoalTitle)).ToList();
 
@@ -449,7 +449,7 @@ namespace 积微.Services
                 (s.TimerType == TimerSessionType.PomodoroFocus
                  || s.TimerType == TimerSessionType.Stopwatch
                  || s.TimerType == TimerSessionType.Countdown) &&
-                s.StartTime.Date == DateTime.Today &&
+                s.EndTime.Date == DateTime.Today &&
                 s.GoalId != "global-goal" &&
                 !string.IsNullOrEmpty(s.GoalTitle)).ToList();
 
@@ -471,7 +471,7 @@ namespace 积微.Services
         {
             var sessions = await LoadSessionsAsync();
             var fragments = sessions.Where(s =>
-                s.StartTime.Date == DateTime.Today &&
+                s.EndTime.Date == DateTime.Today &&
                 s.Type == SessionType.Focus &&
                 s.GoalId != "global-goal" &&
                 (s.TimerType == TimerSessionType.Stopwatch || s.TimerType == TimerSessionType.Countdown)).ToList();
@@ -539,7 +539,7 @@ namespace 积微.Services
                 EndDate = endDate
             };
 
-            var reportSessions = sessions.Where(s => s.StartTime >= startDate && s.StartTime <= endDate && s.GoalId != "global-goal").ToList();
+            var reportSessions = sessions.Where(s => s.EndTime >= startDate && s.EndTime <= endDate && s.GoalId != "global-goal").ToList();
 
             foreach (var session in reportSessions)
             {
@@ -701,6 +701,31 @@ namespace 积微.Services
             {
                 kvp.Value.ActiveGoalCount = activeGoalCount;
                 kvp.Value.CompletedGoalCount = completedGoalCount;
+            }
+        }
+
+        /// <summary>当目标名称变更时，同步更新所有相关会话记录中的 GoalTitle。</summary>
+        public static async Task UpdateSessionGoalTitleAsync(string goalId, string newTitle)
+        {
+            await _cacheLock.WaitAsync();
+            try
+            {
+                var sessions = _cachedSessions ?? await LoadSessionsInternalAsync();
+                bool changed = false;
+                foreach (var session in sessions)
+                {
+                    if (session.GoalId == goalId && session.GoalTitle != newTitle)
+                    {
+                        session.GoalTitle = newTitle;
+                        changed = true;
+                    }
+                }
+                if (changed)
+                    await SaveSessionsInternalAsync(sessions);
+            }
+            finally
+            {
+                _cacheLock.Release();
             }
         }
 
