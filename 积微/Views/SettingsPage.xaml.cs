@@ -34,14 +34,14 @@ namespace 积微.Views
 
         private void SetupEventHandlers()
         {
-            WorkDurationInput.TextChanged += (s, e) => AutoSaveSettings();
-            BreakDurationInput.TextChanged += (s, e) => AutoSaveSettings();
-            LongBreakDurationInput.TextChanged += (s, e) => AutoSaveSettings();
-            SessionsBeforeLongBreakInput.TextChanged += (s, e) => AutoSaveSettings();
-            CountdownDefaultDaysInput.TextChanged += (s, e) => AutoSaveSettings();
-            CountdownDefaultHoursInput.TextChanged += (s, e) => AutoSaveSettings();
-            CountdownDefaultMinutesInput.TextChanged += (s, e) => AutoSaveSettings();
-            CountdownDefaultSecondsInput.TextChanged += (s, e) => AutoSaveSettings();
+            WorkDurationInput.LostFocus += (s, e) => AutoSaveSettings();
+            BreakDurationInput.LostFocus += (s, e) => AutoSaveSettings();
+            LongBreakDurationInput.LostFocus += (s, e) => AutoSaveSettings();
+            SessionsBeforeLongBreakInput.LostFocus += (s, e) => AutoSaveSettings();
+            CountdownDefaultDaysInput.LostFocus += (s, e) => AutoSaveSettings();
+            CountdownDefaultHoursInput.LostFocus += (s, e) => AutoSaveSettings();
+            CountdownDefaultMinutesInput.LostFocus += (s, e) => AutoSaveSettings();
+            CountdownDefaultSecondsInput.LostFocus += (s, e) => AutoSaveSettings();
 
             NotificationSoundEnabledCheckBox.Checked += (s, e) => AutoSaveSettings();
             NotificationSoundEnabledCheckBox.Unchecked += (s, e) => AutoSaveSettings();
@@ -158,48 +158,52 @@ namespace 积微.Views
                 if (!string.IsNullOrEmpty(folderPath))
                 {
                     StoragePathTextBox.Text = folderPath;
+                    var settings = SettingsManager.Current;
+                    settings.DataStoragePath = folderPath;
+                    SettingsManager.SaveSettings();
                 }
             }
         }
 
         private void NavButton_Click(object sender, SW.RoutedEventArgs e)
         {
-            // 暂时使用硬编码的颜色值，确保应用程序能够正常启动
-            var inactiveBg = new SWM.SolidColorBrush(SWM.Color.FromRgb(243, 244, 246));
-            var inactiveFg = new SWM.SolidColorBrush(SWM.Color.FromRgb(17, 24, 39));
-            var activeBg = new SWM.SolidColorBrush(SWM.Color.FromRgb(59, 130, 246));
-            var activeFg = new SWM.SolidColorBrush(SWM.Colors.White);
-
-            ClockButton.Background = inactiveBg;
-            ClockButton.Foreground = inactiveFg;
+            // Hide all pages and set all buttons to inactive (auto-updates on theme change)
+            SetNavButtonInactive(ClockButton);
+            SetNavButtonInactive(SoundButton);
+            SetNavButtonInactive(OtherButton);
             ClockPage.Visibility = SW.Visibility.Collapsed;
-
-            SoundButton.Background = inactiveBg;
-            SoundButton.Foreground = inactiveFg;
             SoundPage.Visibility = SW.Visibility.Collapsed;
-
-            OtherButton.Background = inactiveBg;
-            OtherButton.Foreground = inactiveFg;
             OtherPage.Visibility = SW.Visibility.Collapsed;
 
             if (sender == ClockButton)
             {
-                ClockButton.Background = activeBg;
-                ClockButton.Foreground = activeFg;
+                SetNavButtonActive(ClockButton);
                 ClockPage.Visibility = SW.Visibility.Visible;
             }
             else if (sender == SoundButton)
             {
-                SoundButton.Background = activeBg;
-                SoundButton.Foreground = activeFg;
+                SetNavButtonActive(SoundButton);
                 SoundPage.Visibility = SW.Visibility.Visible;
             }
             else if (sender == OtherButton)
             {
-                OtherButton.Background = activeBg;
-                OtherButton.Foreground = activeFg;
+                SetNavButtonActive(OtherButton);
                 OtherPage.Visibility = SW.Visibility.Visible;
             }
+        }
+
+        /// <summary>设置为激活状态（通过资源引用，主题切换时自动更新）</summary>
+        private static void SetNavButtonActive(SWC.Button button)
+        {
+            button.SetResourceReference(SWC.Control.BackgroundProperty, "AccentColor");
+            button.Foreground = new SWM.SolidColorBrush(SWM.Colors.White);
+        }
+
+        /// <summary>设置为非激活状态（通过资源引用，主题切换时自动更新）</summary>
+        private static void SetNavButtonInactive(SWC.Button button)
+        {
+            button.SetResourceReference(SWC.Control.BackgroundProperty, "HoverColor");
+            button.SetResourceReference(SWC.Control.ForegroundProperty, "TextPrimary");
         }
 
         private void NotificationSoundButton_Click(object sender, SW.RoutedEventArgs e)
@@ -245,31 +249,47 @@ namespace 积微.Views
 
                 if (int.TryParse(WorkDurationInput.Text, out int workDuration) && workDuration > 0)
                     settings.WorkDuration = workDuration;
+                else
+                    WorkDurationInput.Text = settings.WorkDuration.ToString();
 
                 if (int.TryParse(BreakDurationInput.Text, out int breakDuration) && breakDuration > 0)
                     settings.BreakDuration = breakDuration;
+                else
+                    BreakDurationInput.Text = settings.BreakDuration.ToString();
 
                 if (int.TryParse(LongBreakDurationInput.Text, out int longBreakDuration) && longBreakDuration > 0)
                     settings.LongBreakDuration = longBreakDuration;
+                else
+                    LongBreakDurationInput.Text = settings.LongBreakDuration.ToString();
 
                 if (int.TryParse(SessionsBeforeLongBreakInput.Text, out int sessionsBeforeLongBreak) &&
-                sessionsBeforeLongBreak > 0)
-                settings.SessionsBeforeLongBreak = sessionsBeforeLongBreak;
+                    sessionsBeforeLongBreak > 0)
+                    settings.SessionsBeforeLongBreak = sessionsBeforeLongBreak;
+                else
+                    SessionsBeforeLongBreakInput.Text = settings.SessionsBeforeLongBreak.ToString();
 
-            if (int.TryParse(CountdownDefaultDaysInput.Text, out int countdownDefaultDays) && countdownDefaultDays >= 0)
-                settings.CountdownDefaultDays = countdownDefaultDays;
+                if (int.TryParse(CountdownDefaultDaysInput.Text, out int countdownDefaultDays) && countdownDefaultDays >= 0)
+                    settings.CountdownDefaultDays = countdownDefaultDays;
+                else
+                    CountdownDefaultDaysInput.Text = settings.CountdownDefaultDays.ToString();
 
-            if (int.TryParse(CountdownDefaultHoursInput.Text, out int countdownDefaultHours) && countdownDefaultHours >= 0 && countdownDefaultHours < 24)
-                settings.CountdownDefaultHours = countdownDefaultHours;
+                if (int.TryParse(CountdownDefaultHoursInput.Text, out int countdownDefaultHours) && countdownDefaultHours >= 0 && countdownDefaultHours < 24)
+                    settings.CountdownDefaultHours = countdownDefaultHours;
+                else
+                    CountdownDefaultHoursInput.Text = settings.CountdownDefaultHours.ToString();
 
-            if (int.TryParse(CountdownDefaultMinutesInput.Text, out int countdownDefaultMinutes) && countdownDefaultMinutes >= 0 && countdownDefaultMinutes < 60)
-                settings.CountdownDefaultMinutes = countdownDefaultMinutes;
+                if (int.TryParse(CountdownDefaultMinutesInput.Text, out int countdownDefaultMinutes) && countdownDefaultMinutes >= 0 && countdownDefaultMinutes < 60)
+                    settings.CountdownDefaultMinutes = countdownDefaultMinutes;
+                else
+                    CountdownDefaultMinutesInput.Text = settings.CountdownDefaultMinutes.ToString();
 
-            if (int.TryParse(CountdownDefaultSecondsInput.Text, out int countdownDefaultSeconds) && countdownDefaultSeconds >= 0 && countdownDefaultSeconds < 60)
-                settings.CountdownDefaultSeconds = countdownDefaultSeconds;
+                if (int.TryParse(CountdownDefaultSecondsInput.Text, out int countdownDefaultSeconds) && countdownDefaultSeconds >= 0 && countdownDefaultSeconds < 60)
+                    settings.CountdownDefaultSeconds = countdownDefaultSeconds;
+                else
+                    CountdownDefaultSecondsInput.Text = settings.CountdownDefaultSeconds.ToString();
 
-            settings.NotificationSoundEnabled = NotificationSoundEnabledCheckBox.IsChecked ?? true;
-            settings.NotificationSoundVolume = (int)NotificationSoundVolumeSlider.Value;
+                settings.NotificationSoundEnabled = NotificationSoundEnabledCheckBox.IsChecked ?? true;
+                settings.NotificationSoundVolume = (int)NotificationSoundVolumeSlider.Value;
 
                 var whiteNoiseStates = new List<string>();
                 var whiteNoiseManager = settings.WhiteNoiseManager;
@@ -361,31 +381,15 @@ namespace 积微.Views
 
         private void WhiteNoiseVolumeSlider_ValueChanged(object sender, SW.RoutedPropertyChangedEventArgs<double> e)
         {
-            SWC.Slider slider = (SWC.Slider)sender;
-            SW.DependencyObject current = slider;
-            SWC.Grid container = null;
-            while (current != null && container == null)
-            {
-                if (current is SWC.Grid g && g.DataContext is WhiteNoiseViewModel)
-                {
-                    container = g;
-                }
+            var slider = (SWC.Slider)sender;
+            var viewModel = ((SW.FrameworkElement)sender).DataContext as WhiteNoiseViewModel;
+            if (viewModel == null) return;
 
-                current = SWM.VisualTreeHelper.GetParent(current);
-            }
-
-            var viewModel = container?.DataContext as WhiteNoiseViewModel;
-            if (viewModel != null)
-            {
-                var settings = SettingsManager.Current;
-                int volume = (int)slider.Value;
-
-                viewModel.Volume = volume;
-
-                settings.WhiteNoiseManager.UpdatePlayerState(viewModel.WhiteNoise, viewModel.IsEnabled, volume);
-
-                AutoSaveSettings();
-            }
+            var settings = SettingsManager.Current;
+            int volume = (int)slider.Value;
+            viewModel.Volume = volume;
+            settings.WhiteNoiseManager.UpdatePlayerState(viewModel.WhiteNoise, viewModel.IsEnabled, volume);
+            AutoSaveSettings();
         }
 
         private void WhiteNoiseContainer_MouseEnter(object sender, SW.Input.MouseEventArgs e)

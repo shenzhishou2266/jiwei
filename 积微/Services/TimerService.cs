@@ -20,7 +20,7 @@ namespace 积微.Services
         private bool _isStopwatchMode = true;
         private int _countdownDays;
         private int _countdownHours;
-        private int _countdownMinutes = 5;
+        private int _countdownMinutes;
         private int _countdownSeconds;
         private Goal? _currentGoal;
         private DispatcherTimer _timer;
@@ -147,25 +147,8 @@ namespace 积微.Services
                 // 当设置了目标且当前是秒表模式时，自动从目标的 TotalElapsedSeconds 来设置计时器的当前时间
                 if (value != null && IsStopwatchMode && !IsActive && value.Id != "global-goal")
                 {
-                    int totalSeconds = value.TotalElapsedSeconds;
-                    int days = totalSeconds / 86400;
-                    int remainingSeconds = totalSeconds % 86400;
-                    int hours = remainingSeconds / 3600;
-                    remainingSeconds = remainingSeconds % 3600;
-                    int minutes = remainingSeconds / 60;
-                    int seconds = remainingSeconds % 60;
-
-                    _days = days;
-                    _hours = hours;
-                    _minutes = minutes;
-                    _seconds = seconds;
-
-                    OnPropertyChanged(nameof(Days));
-                    OnPropertyChanged(nameof(Hours));
-                    OnPropertyChanged(nameof(Minutes));
-                    OnPropertyChanged(nameof(Seconds));
-                    OnPropertyChanged(nameof(TimeDisplay));
-                    OnPropertyChanged(nameof(ShortTimeDisplay));
+                    SetTimeFromTotalSeconds(value.TotalElapsedSeconds);
+                    NotifyTimeChanged();
                 }
                 // 全局目标：秒表从0开始，倒计时从默认时长开始
                 else if (value != null && value.Id == "global-goal" && !IsActive)
@@ -178,8 +161,7 @@ namespace 积微.Services
                     {
                         SyncDisplayToCountdown();
                     }
-                    OnPropertyChanged(nameof(TimeDisplay));
-                    OnPropertyChanged(nameof(ShortTimeDisplay));
+                    NotifyTimeChanged();
                 }
             }
         }
@@ -262,8 +244,7 @@ namespace 积微.Services
                     _seconds--;
                 }
             }
-            OnPropertyChanged(nameof(TimeDisplay));
-            OnPropertyChanged(nameof(ShortTimeDisplay));
+            NotifyTimeChanged();
         }
 
         private async System.Threading.Tasks.Task HandleCountdownCompletion()
@@ -454,7 +435,7 @@ namespace 积微.Services
             _seconds = _countdownSeconds;
         }
 
-        /// <summary>从设置加载默认倒计时时间，同步到设定值和显示值。</summary>
+        /// <summary>从设置加载默认倒计时设定值。不负责同步显示，由调用方决定。</summary>
         private void LoadCountdownFromSettings()
         {
             var settings = SettingsManager.Current;
@@ -462,7 +443,6 @@ namespace 积微.Services
             _countdownHours = settings.CountdownDefaultHours;
             _countdownMinutes = settings.CountdownDefaultMinutes;
             _countdownSeconds = settings.CountdownDefaultSeconds;
-            SyncDisplayToCountdown();
         }
 
         /// <summary>
@@ -503,10 +483,10 @@ namespace 积微.Services
             else
             {
                 LoadCountdownFromSettings();
+                SyncDisplayToCountdown();
             }
 
-            OnPropertyChanged(nameof(TimeDisplay));
-            OnPropertyChanged(nameof(ShortTimeDisplay));
+            NotifyTimeChanged();
         }
 
         /// <summary>切换到秒表模式</summary>
@@ -520,18 +500,7 @@ namespace 积微.Services
             // 如果有目标（非全局目标），从目标的累计时间开始
             if (CurrentGoal != null && CurrentGoal.Id != "global-goal")
             {
-                int totalSeconds = CurrentGoal.TotalElapsedSeconds;
-                int days = totalSeconds / 86400;
-                int remainingSeconds = totalSeconds % 86400;
-                int hours = remainingSeconds / 3600;
-                remainingSeconds = remainingSeconds % 3600;
-                int minutes = remainingSeconds / 60;
-                int seconds = remainingSeconds % 60;
-
-                _days = days;
-                _hours = hours;
-                _minutes = minutes;
-                _seconds = seconds;
+                SetTimeFromTotalSeconds(CurrentGoal.TotalElapsedSeconds);
             }
             else
             {
@@ -541,8 +510,7 @@ namespace 积微.Services
                 _seconds = 0;
             }
 
-            OnPropertyChanged(nameof(TimeDisplay));
-            OnPropertyChanged(nameof(ShortTimeDisplay));
+            NotifyTimeChanged();
         }
 
         /// <summary>切换到倒计时模式</summary>
@@ -553,8 +521,7 @@ namespace 积微.Services
             _sessionStartDays = _sessionStartHours = _sessionStartMinutes = _sessionStartSeconds = 0;
             IsStopwatchMode = false;
             SyncDisplayToCountdown();
-            OnPropertyChanged(nameof(TimeDisplay));
-            OnPropertyChanged(nameof(ShortTimeDisplay));
+            NotifyTimeChanged();
         }
 
         /// <summary>设置倒计时时间</summary>
@@ -570,8 +537,7 @@ namespace 积微.Services
                 _hours = hours;
                 _minutes = minutes;
                 _seconds = seconds;
-                OnPropertyChanged(nameof(TimeDisplay));
-                OnPropertyChanged(nameof(ShortTimeDisplay));
+                NotifyTimeChanged();
             }
         }
 
@@ -584,8 +550,7 @@ namespace 积微.Services
                 _hours = hours;
                 _minutes = minutes;
                 _seconds = seconds;
-                OnPropertyChanged(nameof(TimeDisplay));
-                OnPropertyChanged(nameof(ShortTimeDisplay));
+                NotifyTimeChanged();
             }
         }
 
@@ -593,6 +558,28 @@ namespace 积微.Services
         protected void OnPropertyChanged([CallerMemberName] string? propertyName = null)
         {
             PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(propertyName));
+        }
+
+        /// <summary>统一通知时间相关属性变更（Days/Hours/Minutes/Seconds/TimeDisplay/ShortTimeDisplay）。</summary>
+        private void NotifyTimeChanged()
+        {
+            OnPropertyChanged(nameof(Days));
+            OnPropertyChanged(nameof(Hours));
+            OnPropertyChanged(nameof(Minutes));
+            OnPropertyChanged(nameof(Seconds));
+            OnPropertyChanged(nameof(TimeDisplay));
+            OnPropertyChanged(nameof(ShortTimeDisplay));
+        }
+
+        /// <summary>根据总秒数设置当前显示时间字段。</summary>
+        private void SetTimeFromTotalSeconds(int totalSeconds)
+        {
+            _days = totalSeconds / 86400;
+            int r = totalSeconds % 86400;
+            _hours = r / 3600;
+            r %= 3600;
+            _minutes = r / 60;
+            _seconds = r % 60;
         }
     }
 }

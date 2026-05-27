@@ -21,12 +21,10 @@ namespace 积微.Views
         private readonly FocusSessionService _pomodoroService;
         private readonly TimerService _timerService;
         private WidgetMode _currentMode = WidgetMode.Pomodoro;
-        private TimerMode _timerMode = TimerMode.Stopwatch;
         private bool _isExpanded = true;
         private bool _isUpdating = false;
 
         private enum WidgetMode { Pomodoro, Timer }
-        private enum TimerMode { Stopwatch, Countdown }
 
         private readonly SWM.Brush _grayBrushForMode = new SWM.SolidColorBrush(SWM.Color.FromRgb(156, 163, 175));
 
@@ -42,9 +40,18 @@ namespace 积微.Views
 
             var settings = SettingsManager.Current;
             
-            // 读取保存的位置设置
-            this.Left = settings.WidgetWindowLeft;
-            this.Top = settings.WidgetWindowTop;
+            // 读取保存的位置设置（默认 -1 表示首次使用，放在右下角）
+            if (settings.WidgetWindowLeft >= 0 && settings.WidgetWindowTop >= 0)
+            {
+                this.Left = settings.WidgetWindowLeft;
+                this.Top = settings.WidgetWindowTop;
+            }
+            else
+            {
+                var workingArea = SW.SystemParameters.WorkArea;
+                this.Left = workingArea.Right - this.Width - 20;
+                this.Top = workingArea.Bottom - this.Height - 20;
+            }
             
             // 初始化置顶属性
             this.Topmost = settings.WidgetWindowTopmost;
@@ -88,6 +95,7 @@ namespace 积微.Views
         {
             if (e.PropertyName == nameof(TimerService.TimeDisplay) ||
                 e.PropertyName == nameof(TimerService.IsActive) ||
+                e.PropertyName == nameof(TimerService.IsStopwatchMode) ||
                 e.PropertyName == nameof(TimerService.CurrentGoal))
             {
                 Dispatcher.Invoke(() =>
@@ -141,7 +149,7 @@ namespace 积微.Views
             }
             else
             {
-                SessionText.Text = _timerMode == TimerMode.Stopwatch ? "秒表" : "倒计时";
+                SessionText.Text = _timerService.IsStopwatchMode ? "秒表" : "倒计时";
                 TimerText.Text = _timerService.ShortTimeDisplay;
 
                 UpdatePlayPauseButton(_timerService.IsActive);
@@ -326,17 +334,10 @@ namespace 积微.Views
 
         private void SwitchTimerMode()
         {
-            if (_timerMode == TimerMode.Stopwatch)
-            {
-                _timerMode = TimerMode.Countdown;
+            if (_timerService.IsStopwatchMode)
                 _timerService.SwitchToCountdown();
-            }
             else
-            {
-                _timerMode = TimerMode.Stopwatch;
                 _timerService.SwitchToStopwatch();
-            }
-            UpdateDisplay();
         }
 
         private void PomodoroModeButton_Click(object sender, RoutedEventArgs e)

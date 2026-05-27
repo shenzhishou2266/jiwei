@@ -20,7 +20,7 @@ namespace 积微.Models
         private int _countdownDefaultMinutes = 5;
         private int _countdownDefaultSeconds = 0;
         private bool _notificationSoundEnabled = true;
-        private string _notificationSoundName = "sound1";
+        private string _notificationSoundName = "音效一";
         private int _notificationSoundVolume = 80;
         private bool _whiteNoiseEnabled = false;
         private string[] _whiteNoiseStates = new string[10];
@@ -218,38 +218,18 @@ namespace 积微.Models
             }
         }
 
+        /// <summary>settings.json 始终存放在默认目录，不受 DataStoragePath 影响</summary>
         private static string GetSettingsFilePath()
         {
-            string dataStoragePath;
+            string path = Path.Combine(
+                Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData),
+                "积微"
+            );
 
-            // 检查_currentSettings是否为null，如果为null则使用默认路径
-            if (_currentSettings == null)
-            {
-                dataStoragePath = Path.Combine(
-                    Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData),
-                    "积微"
-                );
-            }
-            else
-            {
-                // 使用用户设定的DataStoragePath
-                dataStoragePath = _currentSettings.DataStoragePath;
+            if (!Directory.Exists(path))
+                Directory.CreateDirectory(path);
 
-                if (string.IsNullOrEmpty(dataStoragePath))
-                {
-                    dataStoragePath = Path.Combine(
-                        Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData),
-                        "积微"
-                    );
-                }
-            }
-
-            if (!Directory.Exists(dataStoragePath))
-            {
-                Directory.CreateDirectory(dataStoragePath);
-            }
-
-            return Path.Combine(dataStoragePath, SettingsFileName);
+            return Path.Combine(path, SettingsFileName);
         }
 
         /// <summary>加载设置文件</summary>

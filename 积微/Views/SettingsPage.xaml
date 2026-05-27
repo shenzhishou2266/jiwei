@@ -91,6 +91,22 @@
             </Style.Triggers>
         </Style>
 
+        <Style x:Key="NavButtonStyle" TargetType="Button">
+            <Setter Property="FontSize" Value="16"/>
+            <Setter Property="FontWeight" Value="SemiBold"/>
+            <Setter Property="Height" Value="48"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border Background="{TemplateBinding Background}" CornerRadius="12" Padding="18,12">
+                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"
+                                              TextElement.Foreground="{TemplateBinding Foreground}"/>
+                        </Border>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
         <Style x:Key="CustomSliderStyle" TargetType="Slider">
             <Setter Property="Height" Value="26"/>
             <Setter Property="Background" Value="{DynamicResource BorderColor}"/>
@@ -210,51 +226,9 @@
             </Setter>
         </Style>
 
-        <Style x:Key="InteractiveNumberInputSmall" TargetType="TextBox">
-            <Setter Property="Height" Value="40"/>
-            <Setter Property="FontSize" Value="17"/>
-            <Setter Property="TextAlignment" Value="Center"/>
-            <Setter Property="VerticalContentAlignment" Value="Center"/>
-            <Setter Property="Background" Value="{DynamicResource Background}"/>
-            <Setter Property="BorderBrush" Value="{DynamicResource BorderColor}"/>
-            <Setter Property="BorderThickness" Value="1.5"/>
+        <Style x:Key="InteractiveNumberInputSmall" TargetType="TextBox" BasedOn="{StaticResource InteractiveNumberInput}">
+            <Setter Property="Width" Value="50"/>
             <Setter Property="Padding" Value="5,0"/>
-            <Setter Property="Foreground" Value="{DynamicResource TextPrimary}"/>
-            <Setter Property="CaretBrush" Value="{DynamicResource TextPrimary}"/>
-            <Setter Property="Template">
-                <Setter.Value>
-                    <ControlTemplate TargetType="TextBox">
-                        <Border x:Name="InputBorder" Background="{TemplateBinding Background}" 
-                                BorderBrush="{TemplateBinding BorderBrush}" 
-                                BorderThickness="{TemplateBinding BorderThickness}"
-                                CornerRadius="10">
-                            <Border.Effect>
-                                <DropShadowEffect Color="#000000" Opacity="0.04" BlurRadius="12" ShadowDepth="2"/>
-                            </Border.Effect>
-                            <ScrollViewer x:Name="PART_ContentHost" Margin="{TemplateBinding Padding}"/>
-                        </Border>
-                        <ControlTemplate.Triggers>
-                            <Trigger Property="IsMouseOver" Value="True">
-                                <Setter Property="BorderBrush" Value="{DynamicResource TextTertiary}"/>
-                                <Setter TargetName="InputBorder" Property="Effect">
-                                    <Setter.Value>
-                                        <DropShadowEffect Color="#000000" Opacity="0.08" BlurRadius="20" ShadowDepth="4"/>
-                                    </Setter.Value>
-                                </Setter>
-                            </Trigger>
-                            <Trigger Property="IsFocused" Value="True">
-                                <Setter Property="BorderBrush" Value="{DynamicResource AccentColor}"/>
-                                <Setter Property="BorderThickness" Value="2"/>
-                                <Setter TargetName="InputBorder" Property="Effect">
-                                    <Setter.Value>
-                                        <DropShadowEffect Color="#3B82F6" Opacity="0.1" BlurRadius="20" ShadowDepth="4"/>
-                                    </Setter.Value>
-                                </Setter>
-                            </Trigger>
-                        </ControlTemplate.Triggers>
-                    </ControlTemplate>
-                </Setter.Value>
-            </Setter>
         </Style>
 
         <Style x:Key="InteractiveSoundButton" TargetType="Button">
@@ -262,16 +236,38 @@
             <Setter Property="Foreground" Value="{DynamicResource TextPrimary}"/>
             <Setter Property="FontSize" Value="14"/>
             <Setter Property="FontWeight" Value="Medium"/>
+            <Setter Property="Cursor" Value="Hand"/>
             <Setter Property="Template">
                 <Setter.Value>
                     <ControlTemplate TargetType="Button">
-                        <Border x:Name="ButtonBorder" Background="{TemplateBinding Background}" CornerRadius="8" Padding="14,10">
-                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                        <Border x:Name="ButtonBorder" 
+                                Background="{TemplateBinding Background}" 
+                                BorderBrush="Transparent" 
+                                BorderThickness="1.5" 
+                                CornerRadius="8" 
+                                Padding="14,10">
+                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"
+                                              TextElement.Foreground="{TemplateBinding Foreground}"/>
                         </Border>
                         <ControlTemplate.Triggers>
-                            <Trigger Property="IsMouseOver" Value="True">
+                            <!-- 未选中时的悬停样式 -->
+                            <MultiDataTrigger>
+                                <MultiDataTrigger.Conditions>
+                                    <Condition Binding="{Binding IsSelected}" Value="False"/>
+                                    <Condition Binding="{Binding RelativeSource={RelativeSource Self}, Path=IsMouseOver}" Value="True"/>
+                                </MultiDataTrigger.Conditions>
                                 <Setter TargetName="ButtonBorder" Property="Background" Value="{DynamicResource BorderColor}"/>
-                            </Trigger>
+                                <Setter TargetName="ButtonBorder" Property="BorderBrush" Value="{DynamicResource TextTertiary}"/>
+                            </MultiDataTrigger>
+                            <!-- 选中时的悬停样式 -->
+                            <MultiDataTrigger>
+                                <MultiDataTrigger.Conditions>
+                                    <Condition Binding="{Binding IsSelected}" Value="True"/>
+                                    <Condition Binding="{Binding RelativeSource={RelativeSource Self}, Path=IsMouseOver}" Value="True"/>
+                                </MultiDataTrigger.Conditions>
+                                <Setter TargetName="ButtonBorder" Property="Background" Value="{DynamicResource AccentColorHover}"/>
+                                <Setter TargetName="ButtonBorder" Property="BorderBrush" Value="{DynamicResource AccentColorHover}"/>
+                            </MultiDataTrigger>
                         </ControlTemplate.Triggers>
                     </ControlTemplate>
                 </Setter.Value>
@@ -366,41 +362,17 @@
                             <ColumnDefinition Width="*"/>
                         </Grid.ColumnDefinitions>
                         
-                        <Button x:Name="ClockButton" Grid.Column="0" Content="时钟" FontSize="16" FontWeight="SemiBold"
+                        <Button x:Name="ClockButton" Grid.Column="0" Content="时钟"
                                 Background="{DynamicResource AccentColor}" Foreground="White"
-                                Margin="0,0,12,0" Click="NavButton_Click" Height="48" Style="{StaticResource InteractiveButton}">
-                            <Button.Template>
-                                <ControlTemplate TargetType="Button">
-                                    <Border Background="{TemplateBinding Background}" CornerRadius="12" Padding="18,12">
-                                        <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
-                                    </Border>
-                                </ControlTemplate>
-                            </Button.Template>
-                        </Button>
-                        
-                        <Button x:Name="SoundButton" Grid.Column="1" Content="声音" FontSize="16" FontWeight="SemiBold"
+                                Margin="0,0,12,0" Click="NavButton_Click" Style="{StaticResource NavButtonStyle}"/>
+
+                        <Button x:Name="SoundButton" Grid.Column="1" Content="声音"
                                 Background="{DynamicResource HoverColor}" Foreground="{DynamicResource TextPrimary}"
-                                Margin="0,0,12,0" Click="NavButton_Click" Height="48" Style="{StaticResource InteractiveButton}">
-                            <Button.Template>
-                                <ControlTemplate TargetType="Button">
-                                    <Border Background="{TemplateBinding Background}" CornerRadius="12" Padding="18,12">
-                                        <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
-                                    </Border>
-                                </ControlTemplate>
-                            </Button.Template>
-                        </Button>
-                        
-                        <Button x:Name="OtherButton" Grid.Column="2" Content="其它" FontSize="16" FontWeight="SemiBold"
+                                Margin="0,0,12,0" Click="NavButton_Click" Style="{StaticResource NavButtonStyle}"/>
+
+                        <Button x:Name="OtherButton" Grid.Column="2" Content="其它"
                                 Background="{DynamicResource HoverColor}" Foreground="{DynamicResource TextPrimary}"
-                                Margin="0,0,0,0" Click="NavButton_Click" Height="48" Style="{StaticResource InteractiveButton}">
-                            <Button.Template>
-                                <ControlTemplate TargetType="Button">
-                                    <Border Background="{TemplateBinding Background}" CornerRadius="12" Padding="18,12">
-                                        <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
-                                    </Border>
-                                </ControlTemplate>
-                            </Button.Template>
-                        </Button>
+                                Margin="0,0,0,0" Click="NavButton_Click" Style="{StaticResource NavButtonStyle}"/>
                     </Grid>
 
                     <StackPanel x:Name="ClockPage" Visibility="Visible">
@@ -484,13 +456,13 @@
                                         <TextBlock Text="倒计时模式的默认时长" FontSize="13" Foreground="{DynamicResource TextTertiary}" Margin="0,5,0,0"/>
                                     </StackPanel>
                                     <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center">
-                                        <TextBox x:Name="CountdownDefaultDaysInput" Style="{StaticResource InteractiveNumberInputSmall}" Text="0" Width="50" Margin="0,0,10,0"/>
+                                        <TextBox x:Name="CountdownDefaultDaysInput" Style="{StaticResource InteractiveNumberInputSmall}" Text="0" Margin="0,0,10,0"/>
                                         <TextBlock Text="天" FontSize="15" Foreground="{DynamicResource TextTertiary}" VerticalAlignment="Center"/>
-                                        <TextBox x:Name="CountdownDefaultHoursInput" Style="{StaticResource InteractiveNumberInputSmall}" Text="0" Width="50" Margin="10,0,10,0"/>
+                                        <TextBox x:Name="CountdownDefaultHoursInput" Style="{StaticResource InteractiveNumberInputSmall}" Text="0" Margin="10,0,10,0"/>
                                         <TextBlock Text="时" FontSize="15" Foreground="{DynamicResource TextTertiary}" VerticalAlignment="Center"/>
-                                        <TextBox x:Name="CountdownDefaultMinutesInput" Style="{StaticResource InteractiveNumberInputSmall}" Text="5" Width="50" Margin="10,0,10,0"/>
+                                        <TextBox x:Name="CountdownDefaultMinutesInput" Style="{StaticResource InteractiveNumberInputSmall}" Text="5" Margin="10,0,10,0"/>
                                         <TextBlock Text="分" FontSize="15" Foreground="{DynamicResource TextTertiary}" VerticalAlignment="Center"/>
-                                        <TextBox x:Name="CountdownDefaultSecondsInput" Style="{StaticResource InteractiveNumberInputSmall}" Text="0" Width="50" Margin="10,0,0,0"/>
+                                        <TextBox x:Name="CountdownDefaultSecondsInput" Style="{StaticResource InteractiveNumberInputSmall}" Text="0" Margin="10,0,0,0"/>
                                         <TextBlock Text="秒" FontSize="15" Foreground="{DynamicResource TextTertiary}" Margin="10,0,0,0" VerticalAlignment="Center"/>
                                     </StackPanel>
                                 </Grid>
@@ -526,7 +498,7 @@
                                         <ItemsControl.ItemTemplate>
                                             <DataTemplate>
                                                 <Button x:Name="NotificationSoundButton" Content="{Binding NotificationSound.Name}" FontSize="14" FontWeight="Medium"
-                                                        Margin="0,0,10,0" Click="NotificationSoundButton_Click" Height="40" MinWidth="90" DataContext="{Binding}" Style="{StaticResource InteractiveSoundButton}"/>
+                                                        Margin="0,0,10,0" Click="NotificationSoundButton_Click" Height="40" MinWidth="90" Style="{StaticResource InteractiveSoundButton}"/>
                                             </DataTemplate>
                                         </ItemsControl.ItemTemplate>
                                         <ItemsControl.ItemsPanel>
@@ -599,7 +571,7 @@
                                                 <Border.Effect>
                                                     <DropShadowEffect Color="#000000" Opacity="0.04" BlurRadius="12" ShadowDepth="2"/>
                                                 </Border.Effect>
-                                                <Grid MouseEnter="WhiteNoiseContainer_MouseEnter" MouseLeave="WhiteNoiseContainer_MouseLeave" MouseLeftButtonDown="WhiteNoiseContainer_Click" DataContext="{Binding}">
+                                                <Grid MouseEnter="WhiteNoiseContainer_MouseEnter" MouseLeave="WhiteNoiseContainer_MouseLeave" MouseLeftButtonDown="WhiteNoiseContainer_Click">
                                                     <Image Source="{Binding WhiteNoise.CoverImagePath, Converter={StaticResource StringToUriConverter}}" Stretch="UniformToFill" Width="Auto" Height="180"/>
                                                     <Border x:Name="WhiteNoiseMask" Background="{DynamicResource CardBackground}" Opacity="{Binding MaskOpacity}">
                                                         <Grid Margin="14,14,14,14" VerticalAlignment="Bottom">
@@ -714,7 +686,7 @@
                                         <TextBlock Text="数据存储路径" FontSize="15" Foreground="{DynamicResource TextSecondary}" FontWeight="Medium"/>
                                         <TextBox x:Name="StoragePathTextBox" Style="{StaticResource InteractiveNumberInput}" 
                                                  Width="Auto" HorizontalAlignment="Stretch" Margin="0,10,20,0"
-                                                 IsReadOnly="True" Text=""/>
+                                                 Text=""/>
                                     </StackPanel>
                                     <Button x:Name="BrowseButton" Grid.Column="1" Content="浏览..." Style="{StaticResource BrowseButtonStyle}" 
                                             VerticalAlignment="Bottom" Margin="0,0,0,0" Click="BrowseButton_Click"/>
