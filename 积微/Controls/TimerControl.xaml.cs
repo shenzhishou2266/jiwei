@@ -1,13 +1,10 @@
 using System;
 using System.Collections.Generic;
-using System.Collections.ObjectModel;
 using System.Linq;
-using System.IO;
 using SW = System.Windows;
 using SWC = System.Windows.Controls;
 using SWInput = System.Windows.Input;
 using SWM = System.Windows.Media;
-using SWI = System.Windows.Media.Imaging;
 using 积微.Models;
 using 积微.Services;
 using 积微.Views;
@@ -26,8 +23,6 @@ namespace 积微.Controls
         private readonly SWM.Brush Gray600Brush = new SWM.SolidColorBrush(SWM.Color.FromArgb(255, 75, 85, 99));
         private readonly SWM.Brush WhiteBrush = SWM.Brushes.White;
 
-        private ObservableCollection<SWI.BitmapImage> _previewImages = new ObservableCollection<SWI.BitmapImage>();
-        private List<string> _previewImageBase64List = new List<string>();
         private bool _suppressTimerDisplayUpdate = false;
         private bool _suppressScrollerValueChanged = false;
 
@@ -59,11 +54,8 @@ namespace 积微.Controls
             Seconds1.SetValueWithoutAnimation(0);
             Seconds2.SetValueWithoutAnimation(0);
 
-            ImagePreviewPanel.ItemsSource = _previewImages;
             Loaded += (s, e) =>
             {
-                SWInput.CommandManager.AddPreviewCanExecuteHandler(TimelineInputTextBox, OnPreviewCanExecutePaste);
-                SWInput.CommandManager.AddPreviewExecutedHandler(TimelineInputTextBox, OnPreviewExecutedPaste);
                 // 延迟设置默认目标为全局目标，确保GoalsPage已经加载
                 System.Windows.Application.Current.Dispatcher.BeginInvoke(new Action(() =>
                 {
@@ -119,286 +111,17 @@ namespace 积微.Controls
 
         private void UserControl_PreviewKeyDown(object sender, System.Windows.Input.KeyEventArgs e)
         {
-            if (e.Key == System.Windows.Input.Key.Enter && TimelineOverlay.Visibility == SW.Visibility.Collapsed)
+            if (e.Key == System.Windows.Input.Key.Enter)
             {
-                if (CurrentGoal != null)
+                var targetGoal = _timerService.CurrentGoal ?? GoalsPage.GlobalGoal;
+                if (targetGoal != null)
                 {
                     e.Handled = true;
-                    ShowTimelineInput();
+                    var quickInputWindow = new QuickTimelineInputWindow(targetGoal);
+                    quickInputWindow.Show();
                 }
             }
         }
-
-        private void ShowTimelineInput()
-        {
-            TimelineOverlay.Visibility = SW.Visibility.Visible;
-            TimelineInputTextBox.Text = "";
-            _previewImages.Clear();
-            _previewImageBase64List.Clear();
-            ImagePreviewPanel.Visibility = SW.Visibility.Collapsed;
-            TimelineInputTextBox.Focus();
-        }
-
-        private void HideTimelineInput()
-        {
-            TimelineOverlay.Visibility = SW.Visibility.Collapsed;
-            TimelineInputTextBox.Text = "";
-            _previewImages.Clear();
-            _previewImageBase64List.Clear();
-            ImagePreviewPanel.Visibility = SW.Visibility.Collapsed;
-            this.Focus();
-        }
-
-        private async void TimelineInputTextBox_PreviewKeyDown(object sender, SWInput.KeyEventArgs e)
-        {
-            try
-            {
-                if (e.Key == SWInput.Key.Enter)
-                {
-                    if ((SWInput.Keyboard.Modifiers & SWInput.ModifierKeys.Shift) == SWInput.ModifierKeys.Shift)
-                    {
-                        e.Handled = false;
-                    }
-                    else
-                    {
-                        e.Handled = true;
-                        await SaveTimelineEntry();
-                    }
-                }
-                else if (e.Key == SWInput.Key.Escape)
-                {
-                    e.Handled = true;
-                    CancelTimelineEntry();
-                }
-            }
-            catch (Exception ex)
-            {
-                System.Diagnostics.Debug.WriteLine($"Error in TimelineInputTextBox_PreviewKeyDown: {ex.Message}");
-            }
-        }
-
-        private async void SaveButton_Click(object sender, SW.RoutedEventArgs e)
-        {
-            try
-            {
-                await SaveTimelineEntry();
-            }
-            catch (Exception ex)
-            {
-                System.Diagnostics.Debug.WriteLine($"Error in SaveButton_Click: {ex.Message}");
-            }
-        }
-
-        private void CancelButton_Click(object sender, SW.RoutedEventArgs e)
-        {
-            CancelTimelineEntry();
-        }
-
-        private async System.Threading.Tasks.Task SaveTimelineEntry()
-        {
-            string text = TimelineInputTextBox.Text.Trim();
-            if ((!string.IsNullOrEmpty(text) || _previewImageBase64List.Count > 0) && CurrentGoal != null)
-            {
-                var type = TypeComboBox.SelectedIndex == 0 ? TimelineEntryType.Thought : TimelineEntryType.Question;
-                if (_previewImageBase64List.Count > 0)
-                {
-                    CurrentGoal.AddTimelineEntry(text, type, null, new List<string>(_previewImageBase64List));
-                }
-                else
-                {
-                    CurrentGoal.AddTimelineEntry(text, type);
-                }
-                await DataStorageService.SaveGoalsAsync(GoalsPage.Goals);
-            }
-            HideTimelineInput();
-        }
-
-        private void CancelTimelineEntry()
-        {
-            HideTimelineInput();
-        }
-
-        private void OnPreviewCanExecutePaste(object sender, SWInput.CanExecuteRoutedEventArgs e)
-        {
-            if (e.Command == SWInput.ApplicationCommands.Paste && TimelineOverlay.Visibility == SW.Visibility.Visible)
-            {
-                e.CanExecute = true;
-                e.Handled = true;
-            }
-        }
-
-        private void OnPreviewExecutedPaste(object sender, SWInput.ExecutedRoutedEventArgs e)
-        {
-            if (e.Command == SWInput.ApplicationCommands.Paste && TimelineOverlay.Visibility == SW.Visibility.Visible)
-            {
-                try
-                {
-                    var dataObject = SW.Clipboard.GetDataObject();
-                    if (dataObject != null)
-                    {
-                        bool handled = false;
-                        
-                        if (dataObject.GetDataPresent(SW.DataFormats.Bitmap))
-                        {
-                            var bitmapSource = dataObject.GetData(SW.DataFormats.Bitmap) as SWI.BitmapSource;
-                            if (bitmapSource != null)
-                            {
-                                var bitmapImage = BitmapSourceToBitmapImage(bitmapSource);
-                                if (bitmapImage != null)
-                                {
-                                    AddImageToPreview(bitmapImage);
-                                    handled = true;
-                                }
-                            }
-                        }
-                        else if (dataObject.GetDataPresent(SW.DataFormats.FileDrop))
-                        {
-                            var files = dataObject.GetData(SW.DataFormats.FileDrop) as string[];
-                            if (files != null)
-                            {
-                                bool hasImage = false;
-                                foreach (var file in files)
-                                {
-                                    if (IsImageFile(file))
-                                    {
-                                        LoadImageFromFile(file);
-                                        hasImage = true;
-                                    }
-                                }
-                                handled = hasImage;
-                            }
-                        }
-                        
-                        if (handled)
-                        {
-                            e.Handled = true;
-                        }
-                    }
-                }
-                catch (Exception ex)
-                {
-                    Console.WriteLine($"Paste error: {ex.Message}");
-                }
-            }
-        }
-
-        private SWI.BitmapImage? BitmapSourceToBitmapImage(SWI.BitmapSource bitmapSource)
-        {
-            var stream = new MemoryStream();
-            var encoder = new SWI.PngBitmapEncoder();
-            encoder.Frames.Add(SWI.BitmapFrame.Create(bitmapSource));
-            encoder.Save(stream);
-            stream.Position = 0;
-            
-            var bitmapImage = new SWI.BitmapImage();
-            bitmapImage.BeginInit();
-            bitmapImage.StreamSource = stream;
-            bitmapImage.CacheOption = SWI.BitmapCacheOption.OnLoad;
-            bitmapImage.EndInit();
-            bitmapImage.Freeze();
-            return bitmapImage;
-        }
-
-        private bool IsImageFile(string filePath)
-        {
-            string[] extensions = new[] { ".jpg", ".jpeg", ".png", ".bmp", ".gif" };
-            string ext = Path.GetExtension(filePath).ToLowerInvariant();
-            return extensions.Contains(ext);
-        }
-
-        private void LoadImageFromFile(string filePath)
-        {
-            try
-            {
-                var bitmap = new SWI.BitmapImage();
-                bitmap.BeginInit();
-                bitmap.UriSource = new Uri(filePath, UriKind.Absolute);
-                bitmap.CacheOption = SWI.BitmapCacheOption.OnLoad;
-                bitmap.EndInit();
-                bitmap.Freeze();
-                AddImageToPreview(bitmap);
-            }
-            catch (Exception ex)
-            {
-                Console.WriteLine($"Error loading image: {ex.Message}");
-            }
-        }
-
-        private void AddImageToPreview(SWI.BitmapImage bitmap)
-        {
-            using (var memoryStream = new MemoryStream())
-            {
-                var encoder = new SWI.PngBitmapEncoder();
-                encoder.Frames.Add(SWI.BitmapFrame.Create(bitmap));
-                encoder.Save(memoryStream);
-                byte[] imageBytes = memoryStream.ToArray();
-                string base64 = Convert.ToBase64String(imageBytes);
-
-                _previewImages.Add(bitmap);
-                _previewImageBase64List.Add(base64);
-                ImagePreviewPanel.Visibility = _previewImages.Count > 0 ? SW.Visibility.Visible : SW.Visibility.Collapsed;
-            }
-        }
-
-        private void AddImageButton_Click(object sender, SW.RoutedEventArgs e)
-        {
-            var openFileDialog = new Microsoft.Win32.OpenFileDialog
-            {
-                Filter = "图片文件|*.jpg;*.jpeg;*.png;*.bmp;*.gif|所有文件|*.*",
-                Multiselect = true
-            };
-
-            bool? result = openFileDialog.ShowDialog();
-            if (result == true)
-            {
-                foreach (string fileName in openFileDialog.FileNames)
-                {
-                    try
-                    {
-                        var bitmapImage = new SWI.BitmapImage();
-                        bitmapImage.BeginInit();
-                        bitmapImage.UriSource = new Uri(fileName);
-                        bitmapImage.CacheOption = SWI.BitmapCacheOption.OnLoad;
-                        bitmapImage.EndInit();
-                        bitmapImage.Freeze();
-                        AddImageToPreview(bitmapImage);
-                    }
-                    catch (Exception ex)
-                    {
-                        var messageBox = new Views.MessageBoxWindow("错误", $"无法加载图片: {ex.Message}");
-                        messageBox.Owner = SW.Window.GetWindow(this);
-                        messageBox.ShowDialog();
-                    }
-                }
-            }
-        }
-
-        private void PreviewImage_MouseLeftButtonDown(object sender, SWInput.MouseButtonEventArgs e)
-        {
-            if (sender is SWC.Image image && image.Tag is SWI.BitmapImage bitmapImage)
-            {
-                var viewer = new Views.ImageViewerWindow(bitmapImage);
-                viewer.Owner = SW.Window.GetWindow(this);
-                viewer.Topmost = true;
-                viewer.Show();
-            }
-            e.Handled = true;
-        }
-
-        private void RemoveImage_Click(object sender, SW.RoutedEventArgs e)
-        {
-            if (sender is SWC.Button button && button.Tag is SWI.BitmapImage image)
-            {
-                int index = _previewImages.IndexOf(image);
-                if (index >= 0)
-                {
-                    _previewImages.RemoveAt(index);
-                    _previewImageBase64List.RemoveAt(index);
-                    ImagePreviewPanel.Visibility = _previewImages.Count > 0 ? SW.Visibility.Visible : SW.Visibility.Collapsed;
-                }
-            }
-        }
-
 
 
         private void LoadSettings()
