@@ -44,6 +44,11 @@ namespace 积微.Views
         private SortOrder createdAtSortOrder = SortOrder.Descending;
         private bool isPageVisible = false;
         private string _searchText = string.Empty;
+        private bool isAllTab = false;
+        /// <summary>目标 ID → GoalItem 映射，用于精确 Widget 移动。</summary>
+        private Dictionary<string, Controls.GoalItem> _goalItemMap = new Dictionary<string, Controls.GoalItem>();
+        /// <summary>当前刷新周期内缓存的排序列表，避免 FindInsertIndex 重复排序。</summary>
+        private List<Goal>? _cachedSortedGoals;
 
         public GoalsPage()
         {
@@ -136,48 +141,88 @@ namespace 积微.Views
 
         private void AddGoalToPanel(Goal goal)
         {
-            // 只有进行中状态且是顶层目标才显示在列表中
-            if (goal.Status != currentStatus || goal.Parent != null)
-                return;
-            
+            if (isAllTab)
+            {
+                // "全部" Tab：子目标始终嵌套在父目标下
+                if (goal.Parent != null)
+                {
+                    if (_goalItemMap.TryGetValue(goal.Parent.Id, out var parentItem))
+                    {
+                        parentItem.LoadChildren();
+                    }
+                    return;
+                }
+            }
+            else
+            {
+                // 状态 Tab：只添加匹配当前状态的
+                if (goal.Status != currentStatus)
+                    return;
+
+                // 如果父目标也在当前 Tab，嵌套到父目标下
+                if (goal.Parent != null && goal.Parent.Status == currentStatus)
+                {
+                    if (_goalItemMap.TryGetValue(goal.Parent.Id, out var parentItem))
+                    {
+                        parentItem.LoadChildren();
+                    }
+                    return;
+                }
+            }
+
+            // 独立渲染
             var titleCount = GoalDisplayHelper.GetTitleCount(Goals);
-            var goalItem = new GoalItem(goal, titleCount);
-            var targetPanel = GetTargetPanel(goal.Status);
-            
-            // 根据排序规则找到正确的插入位置
+            var targetPanel = isAllTab ? AllGoalsPanel : GetTargetPanel(currentStatus);
+
+            bool showParentRef = goal.Parent != null && !isAllTab;
+            GoalStatus? childFilter = isAllTab ? null : (GoalStatus?)currentStatus;
+            var goalItem = new Controls.GoalItem(goal, titleCount, childFilter, showParentRef, goalItemMap: _goalItemMap, searchText: _searchText);
+
             int insertIndex = FindInsertIndex(targetPanel, goal);
             targetPanel.Children.Insert(insertIndex, goalItem);
-            
-            // 确保面板可见
             targetPanel.Visibility = SW.Visibility.Visible;
+            _goalItemMap[goal.Id] = goalItem;
         }
-        
+
         /// <summary>将目标从旧状态面板移动到新状态面板。</summary>
         public void MoveGoalToNewStatus(Goal goal, GoalStatus oldStatus, GoalStatus newStatus)
         {
-            // 只处理顶层目标
-            if (goal.Parent != null)
-                return;
-            
-            // 从旧的面板中移除
-            var oldPanel = GetTargetPanel(oldStatus);
-            // 查找并移除对应的 GoalItem
-            for (int i = oldPanel.Children.Count - 1; i >= 0; i--)
+            // "全部" Tab：不需要移动 Widget，只需刷新以更新颜色
+            if (isAllTab)
             {
-                if (oldPanel.Children[i] is GoalItem goalItem && goalItem.Goal == goal)
+                if (_goalItemMap.TryGetValue(goal.Id, out var allGoalItem))
                 {
-                    oldPanel.Children.RemoveAt(i);
-                    break;
+                    allGoalItem.UpdateUI();
+                    // 子目标状态变化可能影响父目标的子目标列表
+                    if (goal.Parent != null && _goalItemMap.TryGetValue(goal.Parent.Id, out var parentItem))
+                    {
+                        parentItem.LoadChildren();
+                    }
                 }
+                return;
             }
-            
-            // 如果旧面板现在为空，隐藏它
-            if (oldPanel.Children.Count == 0)
+
+            // 从旧位置移除
+            if (_goalItemMap.TryGetValue(goal.Id, out var goalItem))
             {
-                oldPanel.Visibility = SW.Visibility.Collapsed;
+                var parentPanel = goalItem.Parent as SWC.Panel;
+                parentPanel?.Children.Remove(goalItem);
+                _goalItemMap.Remove(goal.Id);
+
+                // 如果是从父目标的 ChildrenPanel 中移除，刷新父目标的子目标列表
+                if (goal.Parent != null && goal.Parent.Status == oldStatus)
+                {
+                    if (_goalItemMap.TryGetValue(goal.Parent.Id, out var parentItem))
+                    {
+                        parentItem.LoadChildren();
+                    }
+                }
+
+                // 检查旧面板是否为空
+                CheckPanelVisibility(oldStatus);
             }
-            
-            // 添加到新的面板
+
+            // 添加到新位置
             AddGoalToPanel(goal);
         }
 
@@ -195,34 +240,96 @@ namespace 积微.Views
 
         private int FindInsertIndex(SWC.StackPanel panel, Goal newGoal)
         {
-            // 获取当前排序方式
-            var sortedGoals = GetSortedGoals();
+            var sortedGoals = _cachedSortedGoals ?? GetSortedGoals();
             int index = 0;
             foreach (var goal in sortedGoals)
             {
                 if (goal == newGoal)
                     break;
-                // 检查这个目标是否在目标面板中
-                if (goal.Status == currentStatus && goal.Parent == null)
+
+                bool goalInPanel;
+                if (isAllTab)
+                {
+                    // "全部" Tab：统计所有顶层目标
+                    goalInPanel = goal.Parent == null;
+                }
+                else
+                {
+                    // 状态 Tab：统计匹配当前状态的目标（含独立子目标）
+                    goalInPanel = goal.Status == currentStatus &&
+                        (goal.Parent == null || goal.Parent.Status != currentStatus);
+                }
+
+                if (goalInPanel)
                     index++;
             }
             return Math.Min(index, panel.Children.Count);
         }
 
+        private void UpdateStatusTitle()
+        {
+            if (isAllTab)
+            {
+                StatusTitle.Text = "全部目标";
+            }
+            else
+            {
+                StatusTitle.Text = currentStatus switch
+                {
+                    GoalStatus.Active => "进行中",
+                    GoalStatus.Completed => "已完成",
+                    GoalStatus.Failed => "已失败",
+                    GoalStatus.Pending => "已搁置",
+                    _ => "进行中"
+                };
+            }
+        }
+
+        private void CheckPanelVisibility(GoalStatus status)
+        {
+            var panel = GetTargetPanel(status);
+            if (panel.Children.Count == 0)
+            {
+                panel.Visibility = SW.Visibility.Collapsed;
+            }
+        }
+
         private List<Goal> GetSortedGoals()
         {
+            var allGoalsSet = new HashSet<Goal>();
+            CollectAllGoals(Goals, allGoalsSet);
+
             if (currentSortBy == SortBy.UpdatedAt)
             {
                 return updatedAtSortOrder == SortOrder.Descending
-                    ? Goals.OrderByDescending(g => g.UpdatedAt).ToList()
-                    : Goals.OrderBy(g => g.UpdatedAt).ToList();
+                    ? allGoalsSet.OrderByDescending(g => g.UpdatedAt).ToList()
+                    : allGoalsSet.OrderBy(g => g.UpdatedAt).ToList();
             }
             else
             {
                 return createdAtSortOrder == SortOrder.Descending
-                    ? Goals.OrderByDescending(g => g.CreatedAt).ToList()
-                    : Goals.OrderBy(g => g.CreatedAt).ToList();
+                    ? allGoalsSet.OrderByDescending(g => g.CreatedAt).ToList()
+                    : allGoalsSet.OrderBy(g => g.CreatedAt).ToList();
             }
+        }
+
+        private void CollectAllGoals(List<Goal> source, HashSet<Goal> result)
+        {
+            foreach (var goal in source)
+            {
+                if (result.Add(goal))
+                    CollectAllGoals(goal.Children, result);
+            }
+        }
+
+        /// <summary>将目标及其所有匹配指定状态的子孙目标加入可见 ID 集合，用于搜索时保持层级结构。</summary>
+        private void AddDescendantsInStatus(Goal goal, GoalStatus status, HashSet<string> visibleIds)
+        {
+            if (goal.Status != status)
+                return;
+            visibleIds.Add(goal.Id);
+            foreach (var child in goal.Children)
+                AddDescendantsInStatus(child, status, visibleIds);
         }
 
         private async Task SaveGoalsAsync()
@@ -232,96 +339,127 @@ namespace 积微.Views
 
         private void UpdateGoalsDisplay()
         {
+            // 清空所有面板并重置
             ActiveGoalsPanel.Children.Clear();
             CompletedGoalsPanel.Children.Clear();
             FailedGoalsPanel.Children.Clear();
             PendingGoalsPanel.Children.Clear();
+            AllGoalsPanel.Children.Clear();
 
             ActiveGoalsPanel.Visibility = SW.Visibility.Collapsed;
             CompletedGoalsPanel.Visibility = SW.Visibility.Collapsed;
             FailedGoalsPanel.Visibility = SW.Visibility.Collapsed;
             PendingGoalsPanel.Visibility = SW.Visibility.Collapsed;
+            AllGoalsPanel.Visibility = SW.Visibility.Collapsed;
 
-            switch (currentStatus)
-            {
-                case GoalStatus.Active:
-                    StatusTitle.Text = "进行中";
-                    break;
-                case GoalStatus.Completed:
-                    StatusTitle.Text = "已完成";
-                    break;
-                case GoalStatus.Failed:
-                    StatusTitle.Text = "已失败";
-                    break;
-                case GoalStatus.Pending:
-                    StatusTitle.Text = "已搁置";
-                    break;
-            }
+            _goalItemMap.Clear();
 
-            List<Goal> sortedGoals;
-            if (currentSortBy == SortBy.UpdatedAt)
+            UpdateStatusTitle();
+
+            // 缓存排序列表，避免 FindInsertIndex 重复排序
+            _cachedSortedGoals = GetSortedGoals();
+            List<Goal> sortedGoals = _cachedSortedGoals;
+            var titleCount = GoalDisplayHelper.GetTitleCount(Goals);
+
+            if (isAllTab)
             {
-                if (updatedAtSortOrder == SortOrder.Descending)
+                // "全部" Tab：显示所有顶层目标，完整层级，保留各自状态颜色
+                AllGoalsPanel.Visibility = SW.Visibility.Visible;
+
+                // 收集搜索匹配的顶层祖先 ID（含子目标匹配时追溯到顶层）
+                HashSet<string>? visibleTopLevelIds = null;
+                if (!string.IsNullOrEmpty(_searchText))
                 {
-                    sortedGoals = Goals.OrderByDescending(g => g.UpdatedAt).ToList();
+                    visibleTopLevelIds = new HashSet<string>();
+                    foreach (var goal in sortedGoals)
+                    {
+                        if (goal.Id == GlobalGoalId)
+                            continue;
+                        var titleMatch = (goal.Title ?? "").IndexOf(_searchText, StringComparison.OrdinalIgnoreCase) >= 0;
+                        var descMatch = (goal.Description ?? "").IndexOf(_searchText, StringComparison.OrdinalIgnoreCase) >= 0;
+                        if (titleMatch || descMatch)
+                        {
+                            // 追溯到顶层祖先
+                            var ancestor = goal;
+                            while (ancestor.Parent != null)
+                                ancestor = ancestor.Parent;
+                            visibleTopLevelIds.Add(ancestor.Id);
+                        }
+                    }
                 }
-                else
+
+                foreach (var goal in sortedGoals)
                 {
-                    sortedGoals = Goals.OrderBy(g => g.UpdatedAt).ToList();
+                    if (goal.Id == GlobalGoalId)
+                        continue;
+                    if (goal.Parent != null)
+                        continue; // 只渲染顶层目标，子目标通过层级渲染
+
+                    if (visibleTopLevelIds != null && !visibleTopLevelIds.Contains(goal.Id))
+                        continue;
+
+                    var goalItem = new Controls.GoalItem(goal, titleCount, childFilterStatus: null, goalItemMap: _goalItemMap, searchText: _searchText);
+                    AllGoalsPanel.Children.Add(goalItem);
+                    _goalItemMap[goal.Id] = goalItem;
                 }
             }
             else
             {
-                if (createdAtSortOrder == SortOrder.Descending)
-                {
-                    sortedGoals = Goals.OrderByDescending(g => g.CreatedAt).ToList();
-                }
-                else
-                {
-                    sortedGoals = Goals.OrderBy(g => g.CreatedAt).ToList();
-                }
-            }
+                // 状态 Tab：显示匹配 currentStatus 的目标，按层级组织
+                var statusGoals = sortedGoals
+                    .Where(g => g.Status == currentStatus && g.Id != GlobalGoalId)
+                    .ToList();
 
-            var titleCount = GoalDisplayHelper.GetTitleCount(Goals);
-            foreach (var goal in sortedGoals)
-            {
-                // 跳过全局目标，不显示在列表中
-                if (goal.Id == GlobalGoalId)
-                    continue;
-                
-                // 搜索过滤：标题或描述匹配搜索文本（不区分大小写）
+                // 搜索过滤：收集匹配搜索的目标，并追溯到顶层祖先，保持层级
+                HashSet<string>? visibleIds = null;
                 if (!string.IsNullOrEmpty(_searchText))
                 {
-                    var titleMatch = (goal.Title ?? "").IndexOf(_searchText, StringComparison.OrdinalIgnoreCase) >= 0;
-                    var descMatch = (goal.Description ?? "").IndexOf(_searchText, StringComparison.OrdinalIgnoreCase) >= 0;
-                    if (!titleMatch && !descMatch)
-                        continue;
-                }
-                
-                if (goal.Status == currentStatus && goal.Parent == null)
-                {
-                    var goalItem = new GoalItem(goal, titleCount);
-                    switch (currentStatus)
+                    visibleIds = new HashSet<string>();
+                    foreach (var goal in statusGoals)
                     {
-                        case GoalStatus.Active:
-                            ActiveGoalsPanel.Visibility = SW.Visibility.Visible;
-                            ActiveGoalsPanel.Children.Add(goalItem);
-                            break;
-                        case GoalStatus.Completed:
-                            CompletedGoalsPanel.Visibility = SW.Visibility.Visible;
-                            CompletedGoalsPanel.Children.Add(goalItem);
-                            break;
-                        case GoalStatus.Failed:
-                            FailedGoalsPanel.Visibility = SW.Visibility.Visible;
-                            FailedGoalsPanel.Children.Add(goalItem);
-                            break;
-                        case GoalStatus.Pending:
-                            PendingGoalsPanel.Visibility = SW.Visibility.Visible;
-                            PendingGoalsPanel.Children.Add(goalItem);
-                            break;
+                        var titleMatch = (goal.Title ?? "").IndexOf(_searchText, StringComparison.OrdinalIgnoreCase) >= 0;
+                        var descMatch = (goal.Description ?? "").IndexOf(_searchText, StringComparison.OrdinalIgnoreCase) >= 0;
+                        if (titleMatch || descMatch)
+                        {
+                            // 追溯到当前 Tab 中的顶层祖先（父目标可能不在当前状态 Tab，此时子目标独立显示）
+                            var ancestor = goal;
+                            while (ancestor.Parent != null && ancestor.Parent.Status == currentStatus)
+                                ancestor = ancestor.Parent;
+                            // 同时把该祖先的所有子孙（匹配当前状态的）也加入可见集，以保持层级渲染
+                            AddDescendantsInStatus(ancestor, currentStatus, visibleIds);
+                        }
                     }
                 }
+
+                var matchingGoals = visibleIds != null
+                    ? statusGoals.Where(g => visibleIds.Contains(g.Id)).ToList()
+                    : statusGoals;
+
+                var targetPanel = GetTargetPanel(currentStatus);
+                targetPanel.Visibility = SW.Visibility.Visible;
+
+                var matchingIds = new HashSet<string>(matchingGoals.Select(g => g.Id));
+
+                foreach (var goal in matchingGoals)
+                {
+                    if (goal.Parent == null)
+                    {
+                        // 顶层目标
+                        var goalItem = new Controls.GoalItem(goal, titleCount, childFilterStatus: currentStatus, goalItemMap: _goalItemMap, searchText: _searchText);
+                        targetPanel.Children.Add(goalItem);
+                        _goalItemMap[goal.Id] = goalItem;
+                    }
+                    else if (!matchingIds.Contains(goal.Parent.Id))
+                    {
+                        // 子目标独立显示（父目标不在当前 Tab）
+                        var goalItem = new Controls.GoalItem(goal, titleCount, childFilterStatus: currentStatus, showParentRef: true, goalItemMap: _goalItemMap, searchText: _searchText);
+                        targetPanel.Children.Add(goalItem);
+                        _goalItemMap[goal.Id] = goalItem;
+                    }
+                    // 否则：子目标由父目标层级渲染，跳过
+                }
             }
+            _cachedSortedGoals = null;
         }
 
         /// <summary>根据当前主题资源重新应用状态按钮颜色（用于主题切换后刷新）。</summary>
@@ -340,6 +478,15 @@ namespace 积微.Views
             FailedButton.Foreground = inactiveFg;
             PendingButton.Background = inactiveBg;
             PendingButton.Foreground = inactiveFg;
+            AllButton.Background = inactiveBg;
+            AllButton.Foreground = inactiveFg;
+
+            if (isAllTab)
+            {
+                AllButton.Background = activeBg;
+                AllButton.Foreground = activeFg;
+                return;
+            }
 
             switch (currentStatus)
             {
@@ -377,6 +524,8 @@ namespace 积微.Views
             FailedButton.Foreground = inactiveFg;
             PendingButton.Background = inactiveBg;
             PendingButton.Foreground = inactiveFg;
+            AllButton.Background = inactiveBg;
+            AllButton.Foreground = inactiveFg;
 
             var button = sender as SWC.Button;
             if (button != null)
@@ -384,20 +533,28 @@ namespace 积微.Views
                 button.Background = activeBg;
                 button.Foreground = activeFg;
 
-                switch (button.Name)
+                if (button.Name == "AllButton")
                 {
-                    case "ActiveButton":
-                        currentStatus = GoalStatus.Active;
-                        break;
-                    case "CompletedButton":
-                        currentStatus = GoalStatus.Completed;
-                        break;
-                    case "FailedButton":
-                        currentStatus = GoalStatus.Failed;
-                        break;
-                    case "PendingButton":
-                        currentStatus = GoalStatus.Pending;
-                        break;
+                    isAllTab = true;
+                }
+                else
+                {
+                    isAllTab = false;
+                    switch (button.Name)
+                    {
+                        case "ActiveButton":
+                            currentStatus = GoalStatus.Active;
+                            break;
+                        case "CompletedButton":
+                            currentStatus = GoalStatus.Completed;
+                            break;
+                        case "FailedButton":
+                            currentStatus = GoalStatus.Failed;
+                            break;
+                        case "PendingButton":
+                            currentStatus = GoalStatus.Pending;
+                            break;
+                    }
                 }
 
                 UpdateGoalsDisplay();

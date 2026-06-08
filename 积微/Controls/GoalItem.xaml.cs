@@ -20,6 +20,14 @@ namespace 积微.Controls
         /// <summary>获取或设置子目标列表是否展开。</summary>
         public bool IsExpanded { get; set; } = false;
         private Dictionary<string, int>? _titleCount;
+        /// <summary>子目标状态过滤器，null 表示加载所有子目标。</summary>
+        private GoalStatus? _childFilterStatus;
+        /// <summary>是否显示父目标引用标签（子目标独立显示时）。</summary>
+        private bool _showParentRef;
+        /// <summary>GoalItem 映射表引用，用于注册子项。</summary>
+        private Dictionary<string, GoalItem>? _goalItemMap;
+        /// <summary>搜索文本，用于过滤 LoadChildren 中的子目标。</summary>
+        private string? _searchText;
 
         private DispatcherTimer _longPressTimer;
         private const int LongPressDurationMs = 1200;
@@ -32,11 +40,17 @@ namespace 积微.Controls
         }
 
         /// <summary>使用指定目标和标题计数构造 GoalItem。</summary>
-        public GoalItem(Goal goal, Dictionary<string, int>? titleCount = null)
+        public GoalItem(Goal goal, Dictionary<string, int>? titleCount = null,
+                        GoalStatus? childFilterStatus = null, bool showParentRef = false,
+                        Dictionary<string, GoalItem>? goalItemMap = null, string? searchText = null)
             : this()
         {
             Goal = goal;
             _titleCount = titleCount;
+            _childFilterStatus = childFilterStatus;
+            _showParentRef = showParentRef;
+            _goalItemMap = goalItemMap;
+            _searchText = searchText;
             UpdateUI();
             LoadChildren();
             SetupLongPress();
@@ -203,13 +217,27 @@ namespace 积微.Controls
                 progressFill.Width = 0;
         }
 
-        private void UpdateUI()
+        public void UpdateUI()
         {
             if (Goal != null)
             {
-                // 重新计算标题计数，确保使用最新的目标标题
-                var updatedTitleCount = GoalDisplayHelper.GetTitleCount(积微.Views.GoalsPage.Goals);
-                GoalTitle.Text = GoalDisplayHelper.GetGoalDisplayName(Goal, updatedTitleCount);
+                // 使用构造函数传入的 _titleCount，避免每次刷新都重新遍历全部目标
+                GoalTitle.Text = GoalDisplayHelper.GetGoalDisplayName(Goal, _titleCount);
+
+                // 显示父目标引用 ToolTip
+                if (_showParentRef && Goal.Parent != null)
+                {
+                    GoalBorder.ToolTip = $"隶属于: {Goal.Parent.Title}";
+                }
+                else
+                {
+                    GoalBorder.ToolTip = null;
+                }
+
+                // 展开按钮始终显示，保持视觉一致性；无子目标时点击无效果
+                bool hasChildrenToShow = Goal.Children.Count > 0 && 
+                    (!_childFilterStatus.HasValue || Goal.Children.Any(c => c.Status == _childFilterStatus.Value));
+                ExpandButton.Visibility = SW.Visibility.Visible;
 
                 // 处理重复目标特有的 UI 元素
                 bool isRecurring = Goal.Type == GoalType.Recurring;
@@ -259,16 +287,67 @@ namespace 积微.Controls
                         StartButton.Visibility = SW.Visibility.Collapsed;
                         break;
                 }
+
+                // 搜索高亮：匹配搜索的目标添加左侧蓝色强调边框
+                if (!string.IsNullOrEmpty(_searchText))
+                {
+                    bool matchesSearch = (Goal.Title ?? "").IndexOf(_searchText, StringComparison.OrdinalIgnoreCase) >= 0 ||
+                                         (Goal.Description ?? "").IndexOf(_searchText, StringComparison.OrdinalIgnoreCase) >= 0;
+                    if (matchesSearch)
+                    {
+                        GoalBorder.BorderBrush = new SWM.SolidColorBrush((SWM.Color)SWM.ColorConverter.ConvertFromString("#8B5CF6"));
+                        GoalBorder.BorderThickness = new SW.Thickness(3, 1, 1, 1);
+                    }
+                    else
+                    {
+                        GoalBorder.BorderBrush = (SWM.Brush)SW.Application.Current.Resources["BorderColor"];
+                        GoalBorder.BorderThickness = new SW.Thickness(1);
+                    }
+                }
+                else
+                {
+                    GoalBorder.BorderBrush = (SWM.Brush)SW.Application.Current.Resources["BorderColor"];
+                    GoalBorder.BorderThickness = new SW.Thickness(1);
+                }
             }
         }
 
-        private void LoadChildren()
+        public void LoadChildren()
         {
             ChildrenPanel.Children.Clear();
+
+            // 判断当前目标自身是否匹配搜索，若是则不筛子目标，让用户看到完整层级
+            bool currentGoalMatchesSearch = !string.IsNullOrEmpty(_searchText) &&
+                ((Goal.Title ?? "").IndexOf(_searchText, StringComparison.OrdinalIgnoreCase) >= 0 ||
+                 (Goal.Description ?? "").IndexOf(_searchText, StringComparison.OrdinalIgnoreCase) >= 0);
+
             foreach (var child in Goal.Children)
             {
-                var childItem = new GoalItem(child, _titleCount);
+                // 状态过滤
+                if (_childFilterStatus.HasValue && child.Status != _childFilterStatus.Value)
+                    continue;
+
+                // 搜索过滤：父目标自身匹配时不过滤子目标，否则只显示匹配搜索的子目标
+                if (!string.IsNullOrEmpty(_searchText) && !currentGoalMatchesSearch)
+                {
+                    var titleMatch = (child.Title ?? "").IndexOf(_searchText, StringComparison.OrdinalIgnoreCase) >= 0;
+                    var descMatch = (child.Description ?? "").IndexOf(_searchText, StringComparison.OrdinalIgnoreCase) >= 0;
+                    if (!titleMatch && !descMatch)
+                        continue;
+                }
+
+                var childItem = new GoalItem(child, _titleCount, _childFilterStatus, goalItemMap: _goalItemMap, searchText: _searchText);
                 ChildrenPanel.Children.Add(childItem);
+                if (_goalItemMap != null && !_goalItemMap.ContainsKey(child.Id))
+                    _goalItemMap[child.Id] = childItem;
+            }
+
+            // 仅当父目标自身不匹配搜索、因子目标匹配才显示时，自动展开以便用户直接看到结果
+            if (!string.IsNullOrEmpty(_searchText) && !currentGoalMatchesSearch && ChildrenPanel.Children.Count > 0)
+            {
+                IsExpanded = true;
+                ChildrenPanel.Visibility = SW.Visibility.Visible;
+                UpdateExpandIcon();
             }
         }
 
@@ -362,112 +441,53 @@ namespace 积微.Controls
 
         private async void CompleteButton_Click(object sender, SW.RoutedEventArgs e)
         {
-            try
-            {
-                var oldStatus = Goal.Status;
-                Goal.Complete();
-                await DataStorageService.SaveGoalsAsync(GoalsPage.Goals);
-
-                // 播放完成提示音
-                var settings = SettingsManager.Current;
-                if (settings.NotificationSoundManager != null)
-                {
-                    var notificationSound = settings.NotificationSoundManager.GetNotificationSound("音效四");
-                    if (notificationSound != null)
-                    {
-                        settings.NotificationSoundManager.Play(notificationSound);
-                    }
-                }
-
-                // 只有顶层目标才需要移动到新面板，子目标只需要更新UI
-                if (Goal.Parent == null)
-                {
-                    var goalsPage = FindParentGoalsPage(this);
-                    goalsPage?.MoveGoalToNewStatus(Goal, oldStatus, Goal.Status);
-                }
-                else
-                {
-                    UpdateUI();
-                }
-            }
-            catch (Exception ex)
-            {
-                System.Diagnostics.Debug.WriteLine($"Error in CompleteButton_Click: {ex.Message}");
-            }
+            await HandleStatusChange(() => Goal.Complete(), playSound: true);
         }
 
         private async void FailButton_Click(object sender, SW.RoutedEventArgs e)
         {
-            try
-            {
-                var oldStatus = Goal.Status;
-                Goal.Fail();
-                await DataStorageService.SaveGoalsAsync(GoalsPage.Goals);
-
-                // 只有顶层目标才需要移动到新面板，子目标只需要更新UI
-                if (Goal.Parent == null)
-                {
-                    var goalsPage = FindParentGoalsPage(this);
-                    goalsPage?.MoveGoalToNewStatus(Goal, oldStatus, Goal.Status);
-                }
-                else
-                {
-                    UpdateUI();
-                }
-            }
-            catch (Exception ex)
-            {
-                System.Diagnostics.Debug.WriteLine($"Error in FailButton_Click: {ex.Message}");
-            }
+            await HandleStatusChange(() => Goal.Fail());
         }
 
         private async void PendingButton_Click(object sender, SW.RoutedEventArgs e)
         {
-            try
-            {
-                var oldStatus = Goal.Status;
-                Goal.Pending();
-                await DataStorageService.SaveGoalsAsync(GoalsPage.Goals);
-
-                // 只有顶层目标才需要移动到新面板，子目标只需要更新UI
-                if (Goal.Parent == null)
-                {
-                    var goalsPage = FindParentGoalsPage(this);
-                    goalsPage?.MoveGoalToNewStatus(Goal, oldStatus, Goal.Status);
-                }
-                else
-                {
-                    UpdateUI();
-                }
-            }
-            catch (Exception ex)
-            {
-                System.Diagnostics.Debug.WriteLine($"Error in PendingButton_Click: {ex.Message}");
-            }
+            await HandleStatusChange(() => Goal.Pending());
         }
 
         private async void StartButton_Click(object sender, SW.RoutedEventArgs e)
         {
+            await HandleStatusChange(() => Goal.Reactivate());
+        }
+
+        /// <summary>统一处理目标状态变更：保存 → 可选的播放音效 → 移动 Widget。</summary>
+        private async Task HandleStatusChange(Action statusAction, bool playSound = false)
+        {
             try
             {
                 var oldStatus = Goal.Status;
-                Goal.Reactivate();
+                statusAction();
                 await DataStorageService.SaveGoalsAsync(GoalsPage.Goals);
 
-                // 只有顶层目标才需要移动到新面板，子目标只需要更新UI
-                if (Goal.Parent == null)
+                if (playSound)
                 {
-                    var goalsPage = FindParentGoalsPage(this);
-                    goalsPage?.MoveGoalToNewStatus(Goal, oldStatus, Goal.Status);
+                    var settings = SettingsManager.Current;
+                    if (settings.NotificationSoundManager != null)
+                    {
+                        var notificationSound = settings.NotificationSoundManager.GetNotificationSound("音效四");
+                        if (notificationSound != null)
+                        {
+                            settings.NotificationSoundManager.Play(notificationSound);
+                        }
+                    }
                 }
-                else
-                {
-                    UpdateUI();
-                }
+
+                // 所有目标（含子目标）都需要移动到新面板
+                var goalsPage = FindParentGoalsPage(this);
+                goalsPage?.MoveGoalToNewStatus(Goal, oldStatus, Goal.Status);
             }
             catch (Exception ex)
             {
-                System.Diagnostics.Debug.WriteLine($"Error in StartButton_Click: {ex.Message}");
+                System.Diagnostics.Debug.WriteLine($"Error in HandleStatusChange: {ex.Message}");
             }
         }
 

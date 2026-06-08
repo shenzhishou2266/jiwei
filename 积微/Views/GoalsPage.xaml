@@ -285,6 +285,23 @@
                             </ControlTemplate>
                         </Button.Template>
                     </Button>
+                    <Button x:Name="AllButton" Content="全部" Width="108" Height="40" 
+                            Background="{DynamicResource HoverColor}" Foreground="{DynamicResource TextSecondary}" 
+                            Click="StatusButton_Click" 
+                            Style="{StaticResource StatusTabButton}">
+                        <Button.Template>
+                            <ControlTemplate TargetType="Button">
+                                <Border x:Name="TabBorder" CornerRadius="10" 
+                                        Background="{TemplateBinding Background}"
+                                        Padding="0">
+                                    <Border.Effect>
+                                        <DropShadowEffect Color="#000000" Opacity="0" BlurRadius="0" ShadowDepth="0"/>
+                                    </Border.Effect>
+                                    <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                </Border>
+                            </ControlTemplate>
+                        </Button.Template>
+                    </Button>
                 </StackPanel>
                 
                 <!-- 标题 + 排序按钮 + 搜索框 同行 -->
@@ -397,6 +414,7 @@
                     <StackPanel x:Name="CompletedGoalsPanel" Visibility="Collapsed"/>
                     <StackPanel x:Name="FailedGoalsPanel" Visibility="Collapsed"/>
                     <StackPanel x:Name="PendingGoalsPanel" Visibility="Collapsed"/>
+                    <StackPanel x:Name="AllGoalsPanel" Visibility="Collapsed"/>
                 </StackPanel>
             </StackPanel>
         </ScrollViewer>
