@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Linq;
 using SW = System.Windows;
@@ -9,6 +9,7 @@ using 积微.Models;
 using 积微.Services;
 using 积微.Views;
 using 积微.Helpers;
+using 积微.Services.Audio;
 
 namespace 积微.Controls
 {
@@ -30,7 +31,7 @@ namespace 积微.Controls
 
             // 监听白噪音状态变化
             var settings = SettingsManager.Current;
-            if (settings.WhiteNoiseManager is System.ComponentModel.INotifyPropertyChanged whiteNoiseManager)
+            if (AudioServices.WhiteNoise is System.ComponentModel.INotifyPropertyChanged whiteNoiseManager)
             {
                 whiteNoiseManager.PropertyChanged += WhiteNoiseManager_PropertyChanged;
             }
@@ -306,7 +307,7 @@ namespace 积微.Controls
                         GoalsPage.Goals.Add(newGoal);
                     }
                     SelectGoal(newGoal);
-                    await DataStorageService.SaveGoalsAsync(GoalsPage.Goals);
+                    await GoalsPage.ViewModel!.SaveAsync();
                 };
                 addGoalWindow.Show();
             }
@@ -319,7 +320,7 @@ namespace 积微.Controls
         private void UpdateWhiteNoiseIcon()
         {
             var settings = SettingsManager.Current;
-            if (settings.WhiteNoiseManager.IsPlaying)
+            if (AudioServices.WhiteNoise.IsPlaying)
             {
                 WhiteNoiseIcon.Fill = new SWM.SolidColorBrush(SWM.Color.FromRgb(16, 185, 129));
                 WhiteNoiseButton.ToolTip = "暂停白噪音";
@@ -336,13 +337,13 @@ namespace 积微.Controls
             var settings = SettingsManager.Current;
             if (settings.WhiteNoiseEnabled)
             {
-                if (settings.WhiteNoiseManager.IsPlaying)
+                if (AudioServices.WhiteNoise.IsPlaying)
                 {
-                    settings.WhiteNoiseManager.Stop();
+                    AudioServices.WhiteNoise.Stop();
                 }
                 else
                 {
-                    settings.WhiteNoiseManager.Play();
+                    AudioServices.WhiteNoise.Play();
                 }
                 UpdateWhiteNoiseIcon();
             }

@@ -1,3 +1,4 @@
+using Microsoft.Extensions.DependencyInjection;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -9,6 +10,7 @@ using 积微.Controls;
 using 积微.Models;
 using 积微.Services;
 using 积微.Helpers;
+using 积微.ViewModels;
 
 namespace 积微.Views
 {
@@ -34,41 +36,40 @@ namespace 积微.Views
     public partial class GoalsPage : SWC.UserControl
     {
         /// <summary>全局目标列表。</summary>
-        public static List<Goal> Goals { get; private set; } = new List<Goal>();
+        public static List<Goal> Goals => ViewModel?.Goals ?? new List<Goal>();
         /// <summary>全局目标对象，用于记录与特定目标无关的内容。</summary>
-        public static Goal? GlobalGoal { get; private set; }
+        public static Goal? GlobalGoal => ViewModel?.GlobalGoal;
         private const string GlobalGoalId = "global-goal";
-        private GoalStatus currentStatus = GoalStatus.Active;
-        private SortBy currentSortBy = SortBy.UpdatedAt;
-        private SortOrder updatedAtSortOrder = SortOrder.Descending;
-        private SortOrder createdAtSortOrder = SortOrder.Descending;
-        private bool isPageVisible = false;
-        private string _searchText = string.Empty;
-        private bool isAllTab = false;
         /// <summary>目标 ID → GoalItem 映射，用于精确 Widget 移动。</summary>
         private Dictionary<string, Controls.GoalItem> _goalItemMap = new Dictionary<string, Controls.GoalItem>();
         /// <summary>当前刷新周期内缓存的排序列表，避免 FindInsertIndex 重复排序。</summary>
         private List<Goal>? _cachedSortedGoals;
 
+        private static GoalsViewModel? _viewModel;
+        /// <summary>共享的 ViewModel 实例。</summary>
+        public static GoalsViewModel? ViewModel => _viewModel;
+
         public GoalsPage()
         {
             InitializeComponent();
             Loaded += GoalsPage_Loaded;
-            LoadGoalsAsync();
+            _viewModel = AppServices.Provider.GetRequiredService<GoalsViewModel>();
+            if (!_viewModel.IsLoaded)
+                LoadGoalsAsync();
             UpdateSortIcons();
         }
-        
+
         private void GoalsPage_Loaded(object sender, SW.RoutedEventArgs e)
         {
             RefreshStatusButtonColors();
             RefreshSortButtonColors();
         }
-        
+
         private void GlobalGoalButton_Click(object sender, SW.RoutedEventArgs e)
         {
-            if (GlobalGoal != null)
+            if (_viewModel?.GlobalGoal != null)
             {
-                var timelineWindow = new TimelineWindow(GlobalGoal);
+                var timelineWindow = new TimelineWindow(_viewModel.GlobalGoal);
                 timelineWindow.WindowStartupLocation = SW.WindowStartupLocation.CenterScreen;
                 timelineWindow.Show();
             }
@@ -85,28 +86,12 @@ namespace 积微.Views
                 UpdateGoalsDisplay();
             }
         }
-        
+
         private async void LoadGoalsAsync()
         {
             try
             {
-                Goals = await DataStorageService.LoadGoalsAsync();
-                DataStorageService.GoalsProvider = () => Goals;
-
-                // 查找或创建全局目标
-                GlobalGoal = Goals.FirstOrDefault(g => g.Id == GlobalGoalId);
-                if (GlobalGoal == null)
-                {
-                    GlobalGoal = new Goal("全局目标", "记录与任何目标无关的想法和内容")
-                    {
-                        Id = GlobalGoalId
-                    };
-                    // 移除创建时自动添加的第一条时间线
-                    GlobalGoal.Timeline.Clear();
-                    Goals.Add(GlobalGoal);
-                    await DataStorageService.SaveGoalsAsync(Goals);
-                }
-
+                await _viewModel!.LoadGoalsAsync();
                 UpdateGoalsDisplay();
             }
             catch (Exception ex)
@@ -114,7 +99,7 @@ namespace 积微.Views
                 System.Diagnostics.Debug.WriteLine($"Error in LoadGoalsAsync: {ex.Message}");
             }
         }
-        
+
         private async void AddGoalButton_Click(object sender, SW.RoutedEventArgs e)
         {
             try
@@ -123,12 +108,8 @@ namespace 积微.Views
                 addGoalWindow.WindowStartupLocation = SW.WindowStartupLocation.CenterScreen;
                 addGoalWindow.GoalAdded += async (s, args) =>
                 {
-                    var newGoal = new Goal(addGoalWindow.GoalTitle, addGoalWindow.GoalDescription);
-                    newGoal.Type = addGoalWindow.SelectedGoalType;
-                    Goals.Add(newGoal);
-                    await DataStorageService.SaveGoalsAsync(Goals);
-
-                    // 只添加新目标到对应面板，不清空所有控件
+                    await _viewModel!.AddGoalAsync(addGoalWindow.GoalTitle, addGoalWindow.GoalDescription, addGoalWindow.SelectedGoalType);
+                    var newGoal = _viewModel.Goals.Last();
                     AddGoalToPanel(newGoal);
                 };
                 addGoalWindow.Show();
@@ -141,9 +122,9 @@ namespace 积微.Views
 
         private void AddGoalToPanel(Goal goal)
         {
-            if (isAllTab)
+            var vm = _viewModel!;
+            if (vm.IsAllTab)
             {
-                // "全部" Tab：子目标始终嵌套在父目标下
                 if (goal.Parent != null)
                 {
                     if (_goalItemMap.TryGetValue(goal.Parent.Id, out var parentItem))
@@ -155,12 +136,10 @@ namespace 积微.Views
             }
             else
             {
-                // 状态 Tab：只添加匹配当前状态的
-                if (goal.Status != currentStatus)
+                if (goal.Status != vm.CurrentStatus)
                     return;
 
-                // 如果父目标也在当前 Tab，嵌套到父目标下
-                if (goal.Parent != null && goal.Parent.Status == currentStatus)
+                if (goal.Parent != null && goal.Parent.Status == vm.CurrentStatus)
                 {
                     if (_goalItemMap.TryGetValue(goal.Parent.Id, out var parentItem))
                     {
@@ -170,13 +149,12 @@ namespace 积微.Views
                 }
             }
 
-            // 独立渲染
-            var titleCount = GoalDisplayHelper.GetTitleCount(Goals);
-            var targetPanel = isAllTab ? AllGoalsPanel : GetTargetPanel(currentStatus);
+            var titleCount = GoalDisplayHelper.GetTitleCount(vm.Goals);
+            var targetPanel = vm.IsAllTab ? AllGoalsPanel : GetTargetPanel(vm.CurrentStatus);
 
-            bool showParentRef = goal.Parent != null && !isAllTab;
-            GoalStatus? childFilter = isAllTab ? null : (GoalStatus?)currentStatus;
-            var goalItem = new Controls.GoalItem(goal, titleCount, childFilter, showParentRef, goalItemMap: _goalItemMap, searchText: _searchText);
+            bool showParentRef = goal.Parent != null && !vm.IsAllTab;
+            GoalStatus? childFilter = vm.IsAllTab ? null : (GoalStatus?)vm.CurrentStatus;
+            var goalItem = new Controls.GoalItem(goal, titleCount, childFilter, showParentRef, goalItemMap: _goalItemMap, searchText: vm.SearchText);
 
             int insertIndex = FindInsertIndex(targetPanel, goal);
             targetPanel.Children.Insert(insertIndex, goalItem);
@@ -184,16 +162,16 @@ namespace 积微.Views
             _goalItemMap[goal.Id] = goalItem;
         }
 
-        /// <summary>将目标从旧状态面板移动到新状态面板。</summary>
+        /// <summary>将目标从旧状态面板移动到新状态面板（状态变更由 HandleStatusChange 中的 statusAction 完成）。</summary>
         public void MoveGoalToNewStatus(Goal goal, GoalStatus oldStatus, GoalStatus newStatus)
         {
-            // "全部" Tab：不需要移动 Widget，只需刷新以更新颜色
-            if (isAllTab)
+            var vm = _viewModel!;
+
+            if (vm.IsAllTab)
             {
                 if (_goalItemMap.TryGetValue(goal.Id, out var allGoalItem))
                 {
                     allGoalItem.UpdateUI();
-                    // 子目标状态变化可能影响父目标的子目标列表
                     if (goal.Parent != null && _goalItemMap.TryGetValue(goal.Parent.Id, out var parentItem))
                     {
                         parentItem.LoadChildren();
@@ -202,14 +180,12 @@ namespace 积微.Views
                 return;
             }
 
-            // 从旧位置移除
             if (_goalItemMap.TryGetValue(goal.Id, out var goalItem))
             {
                 var parentPanel = goalItem.Parent as SWC.Panel;
                 parentPanel?.Children.Remove(goalItem);
                 _goalItemMap.Remove(goal.Id);
 
-                // 如果是从父目标的 ChildrenPanel 中移除，刷新父目标的子目标列表
                 if (goal.Parent != null && goal.Parent.Status == oldStatus)
                 {
                     if (_goalItemMap.TryGetValue(goal.Parent.Id, out var parentItem))
@@ -218,11 +194,9 @@ namespace 积微.Views
                     }
                 }
 
-                // 检查旧面板是否为空
                 CheckPanelVisibility(oldStatus);
             }
 
-            // 添加到新位置
             AddGoalToPanel(goal);
         }
 
@@ -240,7 +214,8 @@ namespace 积微.Views
 
         private int FindInsertIndex(SWC.StackPanel panel, Goal newGoal)
         {
-            var sortedGoals = _cachedSortedGoals ?? GetSortedGoals();
+            var sortedGoals = _cachedSortedGoals ?? _viewModel!.GetSortedGoals();
+            var vm = _viewModel!;
             int index = 0;
             foreach (var goal in sortedGoals)
             {
@@ -248,16 +223,14 @@ namespace 积微.Views
                     break;
 
                 bool goalInPanel;
-                if (isAllTab)
+                if (vm.IsAllTab)
                 {
-                    // "全部" Tab：统计所有顶层目标
                     goalInPanel = goal.Parent == null;
                 }
                 else
                 {
-                    // 状态 Tab：统计匹配当前状态的目标（含独立子目标）
-                    goalInPanel = goal.Status == currentStatus &&
-                        (goal.Parent == null || goal.Parent.Status != currentStatus);
+                    goalInPanel = goal.Status == vm.CurrentStatus &&
+                        (goal.Parent == null || goal.Parent.Status != vm.CurrentStatus);
                 }
 
                 if (goalInPanel)
@@ -268,13 +241,14 @@ namespace 积微.Views
 
         private void UpdateStatusTitle()
         {
-            if (isAllTab)
+            var vm = _viewModel!;
+            if (vm.IsAllTab)
             {
                 StatusTitle.Text = "全部目标";
             }
             else
             {
-                StatusTitle.Text = currentStatus switch
+                StatusTitle.Text = vm.CurrentStatus switch
                 {
                     GoalStatus.Active => "进行中",
                     GoalStatus.Completed => "已完成",
@@ -294,52 +268,9 @@ namespace 积微.Views
             }
         }
 
-        private List<Goal> GetSortedGoals()
-        {
-            var allGoalsSet = new HashSet<Goal>();
-            CollectAllGoals(Goals, allGoalsSet);
-
-            if (currentSortBy == SortBy.UpdatedAt)
-            {
-                return updatedAtSortOrder == SortOrder.Descending
-                    ? allGoalsSet.OrderByDescending(g => g.UpdatedAt).ToList()
-                    : allGoalsSet.OrderBy(g => g.UpdatedAt).ToList();
-            }
-            else
-            {
-                return createdAtSortOrder == SortOrder.Descending
-                    ? allGoalsSet.OrderByDescending(g => g.CreatedAt).ToList()
-                    : allGoalsSet.OrderBy(g => g.CreatedAt).ToList();
-            }
-        }
-
-        private void CollectAllGoals(List<Goal> source, HashSet<Goal> result)
-        {
-            foreach (var goal in source)
-            {
-                if (result.Add(goal))
-                    CollectAllGoals(goal.Children, result);
-            }
-        }
-
-        /// <summary>将目标及其所有匹配指定状态的子孙目标加入可见 ID 集合，用于搜索时保持层级结构。</summary>
-        private void AddDescendantsInStatus(Goal goal, GoalStatus status, HashSet<string> visibleIds)
-        {
-            if (goal.Status != status)
-                return;
-            visibleIds.Add(goal.Id);
-            foreach (var child in goal.Children)
-                AddDescendantsInStatus(child, status, visibleIds);
-        }
-
-        private async Task SaveGoalsAsync()
-        {
-            await DataStorageService.SaveGoalsAsync(Goals);
-        }
-
         private void UpdateGoalsDisplay()
         {
-            // 清空所有面板并重置
+            var vm = _viewModel!;
             ActiveGoalsPanel.Children.Clear();
             CompletedGoalsPanel.Children.Clear();
             FailedGoalsPanel.Children.Clear();
@@ -353,110 +284,41 @@ namespace 积微.Views
             AllGoalsPanel.Visibility = SW.Visibility.Collapsed;
 
             _goalItemMap.Clear();
-
             UpdateStatusTitle();
 
-            // 缓存排序列表，避免 FindInsertIndex 重复排序
-            _cachedSortedGoals = GetSortedGoals();
-            List<Goal> sortedGoals = _cachedSortedGoals;
-            var titleCount = GoalDisplayHelper.GetTitleCount(Goals);
+            _cachedSortedGoals = vm.GetSortedGoals();
+            var visibleGoals = vm.GetVisibleGoals();
+            var titleCount = GoalDisplayHelper.GetTitleCount(vm.Goals);
 
-            if (isAllTab)
+            if (vm.IsAllTab)
             {
-                // "全部" Tab：显示所有顶层目标，完整层级，保留各自状态颜色
                 AllGoalsPanel.Visibility = SW.Visibility.Visible;
-
-                // 收集搜索匹配的顶层祖先 ID（含子目标匹配时追溯到顶层）
-                HashSet<string>? visibleTopLevelIds = null;
-                if (!string.IsNullOrEmpty(_searchText))
+                foreach (var goal in visibleGoals)
                 {
-                    visibleTopLevelIds = new HashSet<string>();
-                    foreach (var goal in sortedGoals)
-                    {
-                        if (goal.Id == GlobalGoalId)
-                            continue;
-                        var titleMatch = (goal.Title ?? "").IndexOf(_searchText, StringComparison.OrdinalIgnoreCase) >= 0;
-                        var descMatch = (goal.Description ?? "").IndexOf(_searchText, StringComparison.OrdinalIgnoreCase) >= 0;
-                        if (titleMatch || descMatch)
-                        {
-                            // 追溯到顶层祖先
-                            var ancestor = goal;
-                            while (ancestor.Parent != null)
-                                ancestor = ancestor.Parent;
-                            visibleTopLevelIds.Add(ancestor.Id);
-                        }
-                    }
-                }
-
-                foreach (var goal in sortedGoals)
-                {
-                    if (goal.Id == GlobalGoalId)
-                        continue;
-                    if (goal.Parent != null)
-                        continue; // 只渲染顶层目标，子目标通过层级渲染
-
-                    if (visibleTopLevelIds != null && !visibleTopLevelIds.Contains(goal.Id))
-                        continue;
-
-                    var goalItem = new Controls.GoalItem(goal, titleCount, childFilterStatus: null, goalItemMap: _goalItemMap, searchText: _searchText);
+                    var goalItem = new Controls.GoalItem(goal, titleCount, childFilterStatus: null, goalItemMap: _goalItemMap, searchText: vm.SearchText);
                     AllGoalsPanel.Children.Add(goalItem);
                     _goalItemMap[goal.Id] = goalItem;
                 }
             }
             else
             {
-                // 状态 Tab：显示匹配 currentStatus 的目标，按层级组织
-                var statusGoals = sortedGoals
-                    .Where(g => g.Status == currentStatus && g.Id != GlobalGoalId)
-                    .ToList();
-
-                // 搜索过滤：收集匹配搜索的目标，并追溯到顶层祖先，保持层级
-                HashSet<string>? visibleIds = null;
-                if (!string.IsNullOrEmpty(_searchText))
-                {
-                    visibleIds = new HashSet<string>();
-                    foreach (var goal in statusGoals)
-                    {
-                        var titleMatch = (goal.Title ?? "").IndexOf(_searchText, StringComparison.OrdinalIgnoreCase) >= 0;
-                        var descMatch = (goal.Description ?? "").IndexOf(_searchText, StringComparison.OrdinalIgnoreCase) >= 0;
-                        if (titleMatch || descMatch)
-                        {
-                            // 追溯到当前 Tab 中的顶层祖先（父目标可能不在当前状态 Tab，此时子目标独立显示）
-                            var ancestor = goal;
-                            while (ancestor.Parent != null && ancestor.Parent.Status == currentStatus)
-                                ancestor = ancestor.Parent;
-                            // 同时把该祖先的所有子孙（匹配当前状态的）也加入可见集，以保持层级渲染
-                            AddDescendantsInStatus(ancestor, currentStatus, visibleIds);
-                        }
-                    }
-                }
-
-                var matchingGoals = visibleIds != null
-                    ? statusGoals.Where(g => visibleIds.Contains(g.Id)).ToList()
-                    : statusGoals;
-
-                var targetPanel = GetTargetPanel(currentStatus);
+                var targetPanel = GetTargetPanel(vm.CurrentStatus);
                 targetPanel.Visibility = SW.Visibility.Visible;
 
-                var matchingIds = new HashSet<string>(matchingGoals.Select(g => g.Id));
-
-                foreach (var goal in matchingGoals)
+                foreach (var goal in visibleGoals)
                 {
                     if (goal.Parent == null)
                     {
-                        // 顶层目标
-                        var goalItem = new Controls.GoalItem(goal, titleCount, childFilterStatus: currentStatus, goalItemMap: _goalItemMap, searchText: _searchText);
+                        var goalItem = new Controls.GoalItem(goal, titleCount, childFilterStatus: vm.CurrentStatus, goalItemMap: _goalItemMap, searchText: vm.SearchText);
                         targetPanel.Children.Add(goalItem);
                         _goalItemMap[goal.Id] = goalItem;
                     }
-                    else if (!matchingIds.Contains(goal.Parent.Id))
+                    else
                     {
-                        // 子目标独立显示（父目标不在当前 Tab）
-                        var goalItem = new Controls.GoalItem(goal, titleCount, childFilterStatus: currentStatus, showParentRef: true, goalItemMap: _goalItemMap, searchText: _searchText);
+                        var goalItem = new Controls.GoalItem(goal, titleCount, childFilterStatus: vm.CurrentStatus, showParentRef: true, goalItemMap: _goalItemMap, searchText: vm.SearchText);
                         targetPanel.Children.Add(goalItem);
                         _goalItemMap[goal.Id] = goalItem;
                     }
-                    // 否则：子目标由父目标层级渲染，跳过
                 }
             }
             _cachedSortedGoals = null;
@@ -469,6 +331,7 @@ namespace 积微.Views
             var inactiveFg = (SWM.SolidColorBrush)FindResource("TextSecondary");
             var activeBg = (SWM.SolidColorBrush)FindResource("AccentColor");
             var activeFg = SWM.Brushes.White;
+            var vm = _viewModel!;
 
             ActiveButton.Background = inactiveBg;
             ActiveButton.Foreground = inactiveFg;
@@ -481,14 +344,14 @@ namespace 积微.Views
             AllButton.Background = inactiveBg;
             AllButton.Foreground = inactiveFg;
 
-            if (isAllTab)
+            if (vm.IsAllTab)
             {
                 AllButton.Background = activeBg;
                 AllButton.Foreground = activeFg;
                 return;
             }
 
-            switch (currentStatus)
+            switch (vm.CurrentStatus)
             {
                 case GoalStatus.Active:
                     ActiveButton.Background = activeBg;
@@ -511,6 +374,7 @@ namespace 积微.Views
 
         private void StatusButton_Click(object sender, SW.RoutedEventArgs e)
         {
+            var vm = _viewModel!;
             var inactiveBg = (SWM.SolidColorBrush)FindResource("HoverColor");
             var inactiveFg = (SWM.SolidColorBrush)FindResource("TextSecondary");
             var activeBg = (SWM.SolidColorBrush)FindResource("AccentColor");
@@ -535,24 +399,24 @@ namespace 积微.Views
 
                 if (button.Name == "AllButton")
                 {
-                    isAllTab = true;
+                    vm.IsAllTab = true;
                 }
                 else
                 {
-                    isAllTab = false;
+                    vm.IsAllTab = false;
                     switch (button.Name)
                     {
                         case "ActiveButton":
-                            currentStatus = GoalStatus.Active;
+                            vm.CurrentStatus = GoalStatus.Active;
                             break;
                         case "CompletedButton":
-                            currentStatus = GoalStatus.Completed;
+                            vm.CurrentStatus = GoalStatus.Completed;
                             break;
                         case "FailedButton":
-                            currentStatus = GoalStatus.Failed;
+                            vm.CurrentStatus = GoalStatus.Failed;
                             break;
                         case "PendingButton":
-                            currentStatus = GoalStatus.Pending;
+                            vm.CurrentStatus = GoalStatus.Pending;
                             break;
                     }
                 }
@@ -563,23 +427,25 @@ namespace 积微.Views
 
         private void UpdateSortIcons()
         {
+            var vm = _viewModel!;
             var sortByUpdatedAtIcon = SortByUpdatedAtButton.Template.FindName("SortByUpdatedAtIcon", SortByUpdatedAtButton) as SWShapes.Path;
             var sortByCreatedAtIcon = SortByCreatedAtButton.Template.FindName("SortByCreatedAtIcon", SortByCreatedAtButton) as SWShapes.Path;
 
             if (sortByUpdatedAtIcon != null)
             {
-                sortByUpdatedAtIcon.Data = SWM.Geometry.Parse(updatedAtSortOrder == SortOrder.Descending ? "M6,12L12,6L18,12" : "M6,6L12,12L18,6");
+                sortByUpdatedAtIcon.Data = SWM.Geometry.Parse(vm.UpdatedAtSortOrder == SortOrder.Descending ? "M6,12L12,6L18,12" : "M6,6L12,12L18,6");
             }
 
             if (sortByCreatedAtIcon != null)
             {
-                sortByCreatedAtIcon.Data = SWM.Geometry.Parse(createdAtSortOrder == SortOrder.Descending ? "M6,12L12,6L18,12" : "M6,6L12,12L18,6");
+                sortByCreatedAtIcon.Data = SWM.Geometry.Parse(vm.CreatedAtSortOrder == SortOrder.Descending ? "M6,12L12,6L18,12" : "M6,6L12,12L18,6");
             }
         }
 
         /// <summary>根据当前主题资源重新应用排序按钮颜色（用于主题切换后刷新）。</summary>
         private void RefreshSortButtonColors()
         {
+            var vm = _viewModel!;
             var inactiveBg = (SWM.SolidColorBrush)FindResource("HoverColor");
             var inactiveStroke = (SWM.SolidColorBrush)FindResource("TextSecondary");
             var activeBg = (SWM.SolidColorBrush)FindResource("AccentColor");
@@ -587,7 +453,7 @@ namespace 积微.Views
             var sortByUpdatedAtIcon = SortByUpdatedAtButton.Template.FindName("SortByUpdatedAtIcon", SortByUpdatedAtButton) as SWShapes.Path;
             var sortByCreatedAtIcon = SortByCreatedAtButton.Template.FindName("SortByCreatedAtIcon", SortByCreatedAtButton) as SWShapes.Path;
 
-            if (currentSortBy == SortBy.UpdatedAt)
+            if (vm.CurrentSortBy == SortBy.UpdatedAt)
             {
                 SortByUpdatedAtButton.Background = activeBg;
                 SortByCreatedAtButton.Background = inactiveBg;
@@ -605,6 +471,7 @@ namespace 积微.Views
 
         private void SortButton_Click(object sender, SW.RoutedEventArgs e)
         {
+            var vm = _viewModel!;
             var button = sender as SWC.Button;
             if (button != null)
             {
@@ -623,20 +490,20 @@ namespace 积微.Views
                 switch (button.Name)
                 {
                     case "SortByUpdatedAtButton":
-                        if (currentSortBy == SortBy.UpdatedAt)
+                        if (vm.CurrentSortBy == SortBy.UpdatedAt)
                         {
-                            updatedAtSortOrder = updatedAtSortOrder == SortOrder.Descending ? SortOrder.Ascending : SortOrder.Descending;
+                            vm.UpdatedAtSortOrder = vm.UpdatedAtSortOrder == SortOrder.Descending ? SortOrder.Ascending : SortOrder.Descending;
                         }
-                        currentSortBy = SortBy.UpdatedAt;
+                        vm.CurrentSortBy = SortBy.UpdatedAt;
                         button.Background = activeBg;
                         if (sortByUpdatedAtIcon != null) sortByUpdatedAtIcon.Stroke = SWM.Brushes.White;
                         break;
                     case "SortByCreatedAtButton":
-                        if (currentSortBy == SortBy.CreatedAt)
+                        if (vm.CurrentSortBy == SortBy.CreatedAt)
                         {
-                            createdAtSortOrder = createdAtSortOrder == SortOrder.Descending ? SortOrder.Ascending : SortOrder.Descending;
+                            vm.CreatedAtSortOrder = vm.CreatedAtSortOrder == SortOrder.Descending ? SortOrder.Ascending : SortOrder.Descending;
                         }
-                        currentSortBy = SortBy.CreatedAt;
+                        vm.CurrentSortBy = SortBy.CreatedAt;
                         button.Background = activeBg;
                         if (sortByCreatedAtIcon != null) sortByCreatedAtIcon.Stroke = SWM.Brushes.White;
                         break;
@@ -653,10 +520,11 @@ namespace 积微.Views
             UpdateGoalsDisplay();
         }
 
+        private bool isPageVisible = false;
         private void SearchTextBox_TextChanged(object sender, SWC.TextChangedEventArgs e)
         {
-            _searchText = SearchTextBox.Text?.Trim() ?? string.Empty;
-            ClearSearchButton.Visibility = string.IsNullOrEmpty(_searchText)
+            _viewModel!.SearchText = SearchTextBox.Text?.Trim() ?? string.Empty;
+            ClearSearchButton.Visibility = string.IsNullOrEmpty(_viewModel.SearchText)
                 ? SW.Visibility.Collapsed
                 : SW.Visibility.Visible;
             UpdateGoalsDisplay();

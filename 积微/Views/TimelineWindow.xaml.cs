@@ -792,7 +792,7 @@ namespace 积微.Views
                         Goal.AddTimelineEntry(string.Empty, entryType, null, imagePathList);
                     }
 
-                    await DataStorageService.SaveGoalsAsync(GoalsPage.Goals);
+                    await GoalsPage.ViewModel!.SaveAsync();
                     LoadTimeline();
                     TimelineInputTextBox.Clear();
                     SetPlaceholderText();
@@ -868,7 +868,7 @@ namespace 积微.Views
                         }
 
                         Goal.Timeline.Remove(entry);
-                        await DataStorageService.SaveGoalsAsync(GoalsPage.Goals);
+                        await GoalsPage.ViewModel!.SaveAsync();
                         LoadTimeline();
                     }
                 }
@@ -1345,7 +1345,7 @@ namespace 积微.Views
                     }
                 }
 
-                await DataStorageService.SaveGoalsAsync(GoalsPage.Goals);
+                await GoalsPage.ViewModel!.SaveAsync();
                 _editingEntry = null;
                 _editingCard = null;
                 _originalContent = null;

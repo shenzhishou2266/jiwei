@@ -8,6 +8,7 @@ using SWM = System.Windows.Media;
 using SWShapes = System.Windows.Shapes;
 using 积微.Models;
 using 积微.Services;
+using 积微.ViewModels;
 
 namespace 积微.Views
 {
@@ -41,11 +42,14 @@ namespace 积微.Views
         }
 
         // 格式化时长显示：0时显示"0"，否则保留一位小数
-        private string FormatHours(double hours)
+        private static void ApplyChangeBrush(SWC.TextBlock textBlock, string changeType)
         {
-            if (hours == 0)
-                return "0";
-            return hours.ToString("F1");
+            textBlock.Foreground = changeType switch
+            {
+                "Positive" => ChangePositiveBrush,
+                "Negative" => ChangeNegativeBrush,
+                _ => ChangeZeroBrush
+            };
         }
 
         private async void StatsPage_Loaded(object sender, SW.RoutedEventArgs e)
@@ -121,50 +125,24 @@ namespace 积微.Views
 
             if (todayPomodorosChange != null)
             {
-                int diff = today.FocusSessions - yesterday.FocusSessions;
-                if (diff > 0)
-                {
-                    todayPomodorosChange.Text = $"比昨天多 {diff} 个";
-                    todayPomodorosChange.Foreground = ChangePositiveBrush;
-                }
-                else if (diff < 0)
-                {
-                    todayPomodorosChange.Text = $"比昨天少 {Math.Abs(diff)} 个";
-                    todayPomodorosChange.Foreground = ChangeNegativeBrush;
-                }
-                else
-                {
-                    todayPomodorosChange.Text = "与昨天持平";
-                    todayPomodorosChange.Foreground = ChangeZeroBrush;
-                }
+                var (text, changeType) = StatsViewModel.CompareInt(today.FocusSessions, yesterday.FocusSessions, "个");
+                todayPomodorosChange.Text = text;
+                ApplyChangeBrush(todayPomodorosChange, changeType);
             }
 
             if (todayHours != null)
             {
                 double hours = Math.Round(today.TotalFocusSeconds / 3600.0, 1);
-                todayHours.Text = FormatHours(hours);
+                todayHours.Text = StatsViewModel.FormatHours(hours);
             }
 
             if (todayHoursChange != null)
             {
                 double todayHoursVal = today.TotalFocusSeconds / 3600.0;
                 double yesterdayHoursVal = yesterday.TotalFocusSeconds / 3600.0;
-                double diff = todayHoursVal - yesterdayHoursVal;
-                if (diff > 0)
-                {
-                    todayHoursChange.Text = $"较昨天 +{diff:F1}h";
-                    todayHoursChange.Foreground = ChangePositiveBrush;
-                }
-                else if (diff < 0)
-                {
-                    todayHoursChange.Text = $"较昨天 -{Math.Abs(diff):F1}h";
-                    todayHoursChange.Foreground = ChangeNegativeBrush;
-                }
-                else
-                {
-                    todayHoursChange.Text = "与昨天持平";
-                    todayHoursChange.Foreground = ChangeZeroBrush;
-                }
+                var (text, changeType) = StatsViewModel.CompareDouble(todayHoursVal, yesterdayHoursVal, "h");
+                todayHoursChange.Text = text;
+                ApplyChangeBrush(todayHoursChange, changeType);
             }
 
             if (todayFragmentsTb != null)
@@ -172,50 +150,24 @@ namespace 积微.Views
 
             if (todayFragmentsChange != null)
             {
-                int diff = today.FragmentSessions - yesterday.FragmentSessions;
-                if (diff > 0)
-                {
-                    todayFragmentsChange.Text = $"比昨天多 {diff} 个";
-                    todayFragmentsChange.Foreground = ChangePositiveBrush;
-                }
-                else if (diff < 0)
-                {
-                    todayFragmentsChange.Text = $"比昨天少 {Math.Abs(diff)} 个";
-                    todayFragmentsChange.Foreground = ChangeNegativeBrush;
-                }
-                else
-                {
-                    todayFragmentsChange.Text = "与昨天持平";
-                    todayFragmentsChange.Foreground = ChangeZeroBrush;
-                }
+                var (text, changeType) = StatsViewModel.CompareInt(today.FragmentSessions, yesterday.FragmentSessions, "个");
+                todayFragmentsChange.Text = text;
+                ApplyChangeBrush(todayFragmentsChange, changeType);
             }
 
             if (todayFragmentHours != null)
             {
                 double hours = Math.Round(today.TotalFragmentSeconds / 3600.0, 1);
-                todayFragmentHours.Text = FormatHours(hours);
+                todayFragmentHours.Text = StatsViewModel.FormatHours(hours);
             }
 
             if (todayFragmentHoursChange != null)
             {
                 double todayFragHours = today.TotalFragmentSeconds / 3600.0;
                 double yesterdayFragHours = yesterday.TotalFragmentSeconds / 3600.0;
-                double diff = todayFragHours - yesterdayFragHours;
-                if (diff > 0)
-                {
-                    todayFragmentHoursChange.Text = $"较昨天 +{diff:F1}h";
-                    todayFragmentHoursChange.Foreground = ChangePositiveBrush;
-                }
-                else if (diff < 0)
-                {
-                    todayFragmentHoursChange.Text = $"较昨天 -{Math.Abs(diff):F1}h";
-                    todayFragmentHoursChange.Foreground = ChangeNegativeBrush;
-                }
-                else
-                {
-                    todayFragmentHoursChange.Text = "与昨天持平";
-                    todayFragmentHoursChange.Foreground = ChangeZeroBrush;
-                }
+                var (text, changeType) = StatsViewModel.CompareDouble(todayFragHours, yesterdayFragHours, "h");
+                todayFragmentHoursChange.Text = text;
+                ApplyChangeBrush(todayFragmentHoursChange, changeType);
             }
 
             if (streakDays != null)
@@ -269,14 +221,14 @@ namespace 积微.Views
             if (monthlyHours != null)
             {
                 double totalHours = (monthly.TotalFocusSeconds + monthly.TotalFragmentSeconds) / 3600.0;
-                monthlyHours.Text = FormatHours(Math.Round(totalHours, 1));
+                monthlyHours.Text = StatsViewModel.FormatHours(Math.Round(totalHours, 1));
             }
 
             if (monthlyHoursSub != null)
             {
                 double pomHours = Math.Round(monthly.TotalFocusSeconds / 3600.0, 1);
                 double fragHours = Math.Round(monthly.TotalFragmentSeconds / 3600.0, 1);
-                monthlyHoursSub.Text = $"番茄 {FormatHours(pomHours)}h · 碎片 {FormatHours(fragHours)}h";
+                monthlyHoursSub.Text = $"番茄 {StatsViewModel.FormatHours(pomHours)}h · 碎片 {StatsViewModel.FormatHours(fragHours)}h";
             }
         }
 
@@ -293,7 +245,7 @@ namespace 积微.Views
             if (totalHours != null)
             {
                 double allHours = (total.TotalFocusSeconds + total.TotalFragmentSeconds) / 3600.0;
-                totalHours.Text = FormatHours(Math.Round(allHours, 1));
+                totalHours.Text = StatsViewModel.FormatHours(Math.Round(allHours, 1));
             }
 
             if (totalHoursSub != null)
@@ -316,7 +268,7 @@ namespace 积微.Views
             {
                 double totalAllHours = (total.TotalFocusSeconds + total.TotalFragmentSeconds) / 3600.0;
                 double avgHours = activeDays > 0 ? totalAllHours / activeDays : 0;
-                avgDailyHours.Text = FormatHours(Math.Round(avgHours, 1));
+                avgDailyHours.Text = StatsViewModel.FormatHours(Math.Round(avgHours, 1));
             }
 
             if (avgDailyHoursSub != null)

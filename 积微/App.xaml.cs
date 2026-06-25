@@ -1,12 +1,13 @@
 using System;
-using System.Collections.Generic;
 using System.Windows;
 using System.Windows.Forms;
 using System.ComponentModel;
-using System.Runtime.InteropServices;
 using 积微.Views;
 using 积微.Models;
 using 积微.Services;
+using 积微.Services.Audio;
+using 积微.ViewModels;
+using Microsoft.Extensions.DependencyInjection;
 using Application = System.Windows.Application;
 
 namespace 积微
@@ -19,28 +20,12 @@ namespace 积微
         private MainWindow? _mainWindow;
         private bool _isShuttingDown = false;
         private bool _keepWidgetOnRestore = false;
-        private readonly List<Window> _themeAwareWindows = new List<Window>();
-
-        [DllImport("dwmapi.dll")]
-        private static extern int DwmSetWindowAttribute(IntPtr hwnd, int attr, ref int attrValue, int attrSize);
-
-        private const int DWMWA_USE_IMMERSIVE_DARK_MODE = 20;
+        private readonly ThemeManager _themeManager = new ThemeManager();
 
         /// <summary>设置窗口的暗色模式样式。</summary>
         public static void SetWindowDarkMode(Window window, bool isDarkMode)
         {
-            try
-            {
-                var hwnd = new System.Windows.Interop.WindowInteropHelper(window).Handle;
-                if (hwnd != IntPtr.Zero)
-                {
-                    int value = isDarkMode ? 1 : 0;
-                    DwmSetWindowAttribute(hwnd, DWMWA_USE_IMMERSIVE_DARK_MODE, ref value, sizeof(int));
-                }
-            }
-            catch
-            {
-            }
+            ThemeManager.SetWindowDarkMode(window, isDarkMode);
         }
 
         /// <summary>注册需要跟随主题变化的窗口。</summary>
@@ -48,12 +33,9 @@ namespace 积微
         {
             if (System.Windows.Application.Current is App app)
             {
-                if (!app._themeAwareWindows.Contains(window))
-                {
-                    app._themeAwareWindows.Add(window);
-                    var settings = SettingsManager.Current;
-                    SetWindowDarkMode(window, settings.Theme != "Light");
-                }
+                app._themeManager.RegisterThemeWindow(window);
+                var settings = SettingsManager.Current;
+                ThemeManager.SetWindowDarkMode(window, settings.Theme != "Light");
             }
         }
 
@@ -62,7 +44,7 @@ namespace 积微
         {
             if (System.Windows.Application.Current is App app)
             {
-                app._themeAwareWindows.Remove(window);
+                app._themeManager.UnregisterThemeWindow(window);
             }
         }
 
@@ -70,23 +52,27 @@ namespace 积微
         {
             if (_mainWindow != null)
             {
-                SetWindowDarkMode(_mainWindow, isDarkMode);
+                ThemeManager.SetWindowDarkMode(_mainWindow, isDarkMode);
             }
 
-            foreach (var window in _themeAwareWindows)
-            {
-                if (window.IsLoaded)
-                {
-                    SetWindowDarkMode(window, isDarkMode);
-                }
-            }
+            _themeManager.ApplyWindowDarkMode(isDarkMode);
         }
 
         protected override void OnStartup(StartupEventArgs e)
         {
             base.OnStartup(e);
             ShutdownMode = ShutdownMode.OnMainWindowClose;
-            
+
+            AppServices.Configure();
+            AudioServices.Initialize();
+
+            // 应用保存的白噪音状态（从 SettingsManager 中移出，避免 Models→Services 耦合）
+            AudioServices.ApplyWhiteNoiseStates(SettingsManager.Current.WhiteNoiseStates);
+
+            // 预加载目标数据，避免 SessionRecorder 在数据加载前被调用
+            var goalVm = AppServices.Provider.GetRequiredService<GoalsViewModel>();
+            goalVm.LoadGoalsAsync();
+
             ApplyTheme(SettingsManager.Current.Theme);
             
             InitializeNotifyIcon();
@@ -101,67 +87,7 @@ namespace 积微
 
         private void ApplyTheme(string theme)
         {
-            Resources.MergedDictionaries.Clear();
-            
-            var themeDictionary = new ResourceDictionary();
-            bool isDarkMode = theme != "Light";
-            
-            if (theme == "Light")
-            {
-                themeDictionary.Add("Background", new System.Windows.Media.SolidColorBrush(System.Windows.Media.Color.FromRgb(249, 250, 251)));
-                themeDictionary.Add("CardBackground", new System.Windows.Media.SolidColorBrush(System.Windows.Media.Color.FromRgb(255, 255, 255)));
-                themeDictionary.Add("TextPrimary", new System.Windows.Media.SolidColorBrush(System.Windows.Media.Color.FromRgb(17, 24, 39)));
-                themeDictionary.Add("TextSecondary", new System.Windows.Media.SolidColorBrush(System.Windows.Media.Color.FromRgb(55, 65, 81)));
-                themeDictionary.Add("TextTertiary", new System.Windows.Media.SolidColorBrush(System.Windows.Media.Color.FromRgb(107, 114, 128)));
-                themeDictionary.Add("BorderColor", new System.Windows.Media.SolidColorBrush(System.Windows.Media.Color.FromRgb(229, 231, 235)));
-                themeDictionary.Add("AccentColor", new System.Windows.Media.SolidColorBrush(System.Windows.Media.Color.FromRgb(59, 130, 246)));
-                themeDictionary.Add("AccentColorHover", new System.Windows.Media.SolidColorBrush(System.Windows.Media.Color.FromRgb(37, 99, 235)));
-                themeDictionary.Add("HoverColor", new System.Windows.Media.SolidColorBrush(System.Windows.Media.Color.FromRgb(243, 244, 246)));
-                themeDictionary.Add("SecondaryBackground", new System.Windows.Media.SolidColorBrush(System.Windows.Media.Color.FromRgb(243, 244, 246)));
-                themeDictionary.Add("SecondaryText", new System.Windows.Media.SolidColorBrush(System.Windows.Media.Color.FromRgb(75, 85, 99)));
-                themeDictionary.Add("TagSelectedFg", new System.Windows.Media.SolidColorBrush(System.Windows.Media.Color.FromRgb(59, 130, 246)));
-                themeDictionary.Add("TagSelectedBg", new System.Windows.Media.SolidColorBrush(System.Windows.Media.Color.FromRgb(219, 234, 254)));
-                themeDictionary.Add("TagSelectedBorder", new System.Windows.Media.SolidColorBrush(System.Windows.Media.Color.FromRgb(59, 130, 246)));
-                themeDictionary.Add("TagLongTermFg", new System.Windows.Media.SolidColorBrush(System.Windows.Media.Color.FromRgb(5, 150, 105)));
-                themeDictionary.Add("TagLongTermBg", new System.Windows.Media.SolidColorBrush(System.Windows.Media.Color.FromRgb(209, 250, 229)));
-                themeDictionary.Add("TagLongTermBorder", new System.Windows.Media.SolidColorBrush(System.Windows.Media.Color.FromRgb(16, 185, 129)));
-                themeDictionary.Add("TagShortTermFg", new System.Windows.Media.SolidColorBrush(System.Windows.Media.Color.FromRgb(37, 99, 235)));
-                themeDictionary.Add("TagShortTermBg", new System.Windows.Media.SolidColorBrush(System.Windows.Media.Color.FromRgb(219, 234, 254)));
-                themeDictionary.Add("TagShortTermBorder", new System.Windows.Media.SolidColorBrush(System.Windows.Media.Color.FromRgb(59, 130, 246)));
-                themeDictionary.Add("TagRecurringFg", new System.Windows.Media.SolidColorBrush(System.Windows.Media.Color.FromRgb(124, 58, 237)));
-                themeDictionary.Add("TagRecurringBg", new System.Windows.Media.SolidColorBrush(System.Windows.Media.Color.FromRgb(237, 233, 254)));
-                themeDictionary.Add("TagRecurringBorder", new System.Windows.Media.SolidColorBrush(System.Windows.Media.Color.FromRgb(139, 92, 246)));
-            }
-            else
-            {
-                themeDictionary.Add("Background", new System.Windows.Media.SolidColorBrush(System.Windows.Media.Color.FromRgb(0, 0, 0)));
-                themeDictionary.Add("CardBackground", new System.Windows.Media.SolidColorBrush(System.Windows.Media.Color.FromRgb(28, 28, 30)));
-                themeDictionary.Add("TextPrimary", new System.Windows.Media.SolidColorBrush(System.Windows.Media.Color.FromRgb(255, 255, 255)));
-                themeDictionary.Add("TextSecondary", new System.Windows.Media.SolidColorBrush(System.Windows.Media.Color.FromRgb(142, 142, 147)));
-                themeDictionary.Add("TextTertiary", new System.Windows.Media.SolidColorBrush(System.Windows.Media.Color.FromRgb(99, 99, 102)));
-                themeDictionary.Add("BorderColor", new System.Windows.Media.SolidColorBrush(System.Windows.Media.Color.FromRgb(56, 56, 58)));
-                themeDictionary.Add("AccentColor", new System.Windows.Media.SolidColorBrush(System.Windows.Media.Color.FromRgb(10, 132, 255)));
-                themeDictionary.Add("AccentColorHover", new System.Windows.Media.SolidColorBrush(System.Windows.Media.Color.FromRgb(0, 111, 255)));
-                themeDictionary.Add("HoverColor", new System.Windows.Media.SolidColorBrush(System.Windows.Media.Color.FromRgb(58, 58, 60)));
-                themeDictionary.Add("SecondaryBackground", new System.Windows.Media.SolidColorBrush(System.Windows.Media.Color.FromRgb(45, 45, 48)));
-                themeDictionary.Add("SecondaryText", new System.Windows.Media.SolidColorBrush(System.Windows.Media.Color.FromRgb(180, 180, 185)));
-                themeDictionary.Add("TagSelectedFg", new System.Windows.Media.SolidColorBrush(System.Windows.Media.Color.FromRgb(147, 197, 253)));
-                themeDictionary.Add("TagSelectedBg", new System.Windows.Media.SolidColorBrush(System.Windows.Media.Color.FromRgb(30, 64, 175)));
-                themeDictionary.Add("TagSelectedBorder", new System.Windows.Media.SolidColorBrush(System.Windows.Media.Color.FromRgb(59, 130, 246)));
-                themeDictionary.Add("TagLongTermFg", new System.Windows.Media.SolidColorBrush(System.Windows.Media.Color.FromRgb(52, 211, 153)));
-                themeDictionary.Add("TagLongTermBg", new System.Windows.Media.SolidColorBrush(System.Windows.Media.Color.FromRgb(6, 78, 59)));
-                themeDictionary.Add("TagLongTermBorder", new System.Windows.Media.SolidColorBrush(System.Windows.Media.Color.FromRgb(5, 150, 105)));
-                themeDictionary.Add("TagShortTermFg", new System.Windows.Media.SolidColorBrush(System.Windows.Media.Color.FromRgb(96, 165, 250)));
-                themeDictionary.Add("TagShortTermBg", new System.Windows.Media.SolidColorBrush(System.Windows.Media.Color.FromRgb(30, 58, 95)));
-                themeDictionary.Add("TagShortTermBorder", new System.Windows.Media.SolidColorBrush(System.Windows.Media.Color.FromRgb(37, 99, 235)));
-                themeDictionary.Add("TagRecurringFg", new System.Windows.Media.SolidColorBrush(System.Windows.Media.Color.FromRgb(167, 139, 250)));
-                themeDictionary.Add("TagRecurringBg", new System.Windows.Media.SolidColorBrush(System.Windows.Media.Color.FromRgb(45, 27, 105)));
-                themeDictionary.Add("TagRecurringBorder", new System.Windows.Media.SolidColorBrush(System.Windows.Media.Color.FromRgb(124, 58, 237)));
-            }
-            
-            Resources.MergedDictionaries.Add(themeDictionary);
-
-            UpdateAllWindowTheme(isDarkMode);
+            _themeManager.ApplyTheme(theme, this);
         }
 
         private void InitializeNotifyIcon()

@@ -1,10 +1,8 @@
 using System;
 using System.ComponentModel;
 using System.IO;
-using System.Linq;
 using System.Text.Json;
 using System.Text.Json.Serialization;
-using 积微.Services.Audio;
 
 namespace 积微.Models
 {
@@ -158,14 +156,6 @@ namespace 积微.Models
             set { if (_autoShowWidgetOnMinimize != value) { _autoShowWidgetOnMinimize = value; OnPropertyChanged(nameof(AutoShowWidgetOnMinimize)); } }
         }
 
-        // 音频相关成员
-        /// <summary>提示音管理器（不序列化）</summary>
-        [JsonIgnore]
-        public NotificationSoundManager NotificationSoundManager { get; set; }
-        /// <summary>白噪音管理器（不序列化）</summary>
-        [JsonIgnore]
-        public WhiteNoiseManager WhiteNoiseManager { get; set; }
-
         /// <summary>属性变更事件</summary>
         public event PropertyChangedEventHandler PropertyChanged;
 
@@ -179,10 +169,6 @@ namespace 积微.Models
                     "积微"
                 );
             }
-
-            // 初始化音频相关成员
-            NotificationSoundManager = new NotificationSoundManager();
-            WhiteNoiseManager = new WhiteNoiseManager();
         }
 
         /// <summary>触发属性变更事件</summary>
@@ -243,12 +229,6 @@ namespace 积微.Models
                 {
                     string json = File.ReadAllText(settingsPath);
                     _currentSettings = JsonSerializer.Deserialize<AppSettings>(json) ?? new AppSettings();
-                    // 重新初始化音频相关成员
-                    _currentSettings.NotificationSoundManager = new NotificationSoundManager();
-                    _currentSettings.WhiteNoiseManager = new WhiteNoiseManager();
-
-                    // 应用保存的白噪音状态
-                    ApplyWhiteNoiseStates(_currentSettings);
                 }
                 catch
                 {
@@ -259,33 +239,6 @@ namespace 积微.Models
             {
                 _currentSettings = new AppSettings();
                 SaveSettings();
-            }
-        }
-
-        private static void ApplyWhiteNoiseStates(AppSettings settings)
-        {
-            if (settings.WhiteNoiseStates != null)
-            {
-                foreach (var state in settings.WhiteNoiseStates)
-                {
-                    if (!string.IsNullOrEmpty(state))
-                    {
-                        var parts = state.Split(',');
-                        if (parts.Length >= 3)
-                        {
-                            string name = parts[0];
-                            bool isEnabled = bool.Parse(parts[1]);
-                            int volume = int.Parse(parts[2]);
-
-                            // 查找对应的白噪音并更新状态
-                            var whiteNoise = settings.WhiteNoiseManager.WhiteNoises.FirstOrDefault(wn => wn.Name == name);
-                            if (whiteNoise != null)
-                            {
-                                settings.WhiteNoiseManager.UpdatePlayerState(whiteNoise, isEnabled, volume);
-                            }
-                        }
-                    }
-                }
             }
         }
 

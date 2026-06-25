@@ -6,6 +6,7 @@ using SWM = System.Windows.Media;
 using 积微.Models;
 using 积微.Services;
 using 积微.Controls;
+using 积微.ViewModels;
 
 namespace 积微.Views
 {
@@ -44,14 +45,6 @@ namespace 积微.Views
 
         private GoalSortField CurrentSortField = GoalSortField.专注会话数;
         private string GoalSearchText = string.Empty;
-
-        // 格式化时长显示：0时显示"0"，否则保留一位小数
-        private string FormatHours(double hours)
-        {
-            if (hours == 0)
-                return "0";
-            return hours.ToString("F1");
-        }
 
         public ReportWindow()
         {
@@ -173,12 +166,12 @@ namespace 积微.Views
             statsGrid.RowDefinitions.Add(new SWC.RowDefinition { Height = SW.GridLength.Auto });
 
             AddStatItem(statsGrid, 0, 0, "番茄钟", totalPomodoroCount.ToString(), "#F97316");
-            AddStatItem(statsGrid, 0, 1, "专注时长", $"{FormatHours(pomodoroHours)} h", "#3B82F6");
+            AddStatItem(statsGrid, 0, 1, "专注时长", $"{StatsViewModel.FormatHours(pomodoroHours)} h", "#3B82F6");
             AddStatItem(statsGrid, 0, 2, "时间碎片", totalFragmentCount.ToString(), "#10B981");
-            AddStatItem(statsGrid, 0, 3, "碎片时长", $"{FormatHours(fragmentHours)} h", "#14B8A6");
+            AddStatItem(statsGrid, 0, 3, "碎片时长", $"{StatsViewModel.FormatHours(fragmentHours)} h", "#14B8A6");
 
-            AddStatItem(statsGrid, 1, 0, "总时长", $"{FormatHours(totalHours)} h", "#8B5CF6");
-            AddStatItem(statsGrid, 1, 1, "目标均时", $"{FormatHours(avgPerGoalHours)} h", "#EC4899");
+            AddStatItem(statsGrid, 1, 0, "总时长", $"{StatsViewModel.FormatHours(totalHours)} h", "#8B5CF6");
+            AddStatItem(statsGrid, 1, 1, "目标均时", $"{StatsViewModel.FormatHours(avgPerGoalHours)} h", "#EC4899");
             AddStatItem(statsGrid, 1, 2, "进行目标", activeGoalCount.ToString(), "#6366F1");
             AddStatItem(statsGrid, 1, 3, "完成目标", completedGoalCount.ToString(), "#F59E0B");
 
@@ -536,10 +529,10 @@ namespace 积微.Views
                 var goalTotalHours = Math.Round(goalStat.TotalSeconds / 3600.0, 1);
 
                 AddStatItem(goalStatsGrid, 0, 0, "番茄钟", goalStat.PomodoroCount.ToString(), "#F97316");
-                AddStatItem(goalStatsGrid, 0, 1, "专注", $"{FormatHours(goalFocusHours)} h", "#3B82F6");
+                AddStatItem(goalStatsGrid, 0, 1, "专注", $"{StatsViewModel.FormatHours(goalFocusHours)} h", "#3B82F6");
                 AddStatItem(goalStatsGrid, 0, 2, "时间碎片", goalStat.FragmentCount.ToString(), "#10B981");
-                AddStatItem(goalStatsGrid, 0, 3, "碎片时长", $"{FormatHours(goalFragmentHours)} h", "#14B8A6");
-                AddStatItem(goalStatsGrid, 0, 4, "总计", $"{FormatHours(goalTotalHours)} h", "#8B5CF6");
+                AddStatItem(goalStatsGrid, 0, 3, "碎片时长", $"{StatsViewModel.FormatHours(goalFragmentHours)} h", "#14B8A6");
+                AddStatItem(goalStatsGrid, 0, 4, "总计", $"{StatsViewModel.FormatHours(goalTotalHours)} h", "#8B5CF6");
 
                 goalItemContent.Children.Add(goalStatsGrid);
                 goalItem.Child = goalItemContent;

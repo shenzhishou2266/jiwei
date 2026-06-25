@@ -1,16 +1,18 @@
+using Microsoft.Extensions.DependencyInjection;
 using System;
 using System.ComponentModel;
 using System.Runtime.CompilerServices;
 using System.Windows.Threading;
 using 积微.Models;
+using 积微.Services.Audio;
 namespace 积微.Services
 {
     /// <summary>通用计时器服务，支持秒表和倒计时模式</summary>
     public class TimerService : INotifyPropertyChanged
     {
         private static TimerService? _instance;
-        /// <summary>单例实例</summary>
-        public static TimerService Instance => _instance ??= new TimerService();
+        /// <summary>单例实例（从 DI 容器解析）</summary>
+        public static TimerService Instance => _instance ??= AppServices.Provider.GetRequiredService<TimerService>();
 
         private int _days;
         private int _hours;
@@ -24,6 +26,8 @@ namespace 积微.Services
         private int _countdownSeconds;
         private Goal? _currentGoal;
         private DispatcherTimer _timer;
+        private readonly SessionRecorder _sessionRecorder;
+        private readonly GoalTimerManager _goalTimerManager;
 
         private int _startDays;
         private int _startHours;
@@ -140,7 +144,7 @@ namespace 积微.Services
             set
             {
                 _currentGoal = value;
-                GoalTimerManager.Instance.SetGoalForTimer(value, GoalTimerManager.TimerTypeNormal);
+                _goalTimerManager.SetGoalForTimer(value, GoalTimerManager.TimerTypeNormal);
                 OnPropertyChanged();
                 OnPropertyChanged(nameof(CurrentGoalDisplay));
 
@@ -178,8 +182,10 @@ namespace 积微.Services
             }
         }
 
-        private TimerService()
+        public TimerService(SessionRecorder sessionRecorder, GoalTimerManager goalTimerManager)
         {
+            _sessionRecorder = sessionRecorder;
+            _goalTimerManager = goalTimerManager;
             LoadCountdownFromSettings();
             _timer = new DispatcherTimer();
             _timer.Interval = TimeSpan.FromSeconds(1);
@@ -259,35 +265,16 @@ namespace 积微.Services
 
             if (CurrentGoal != null)
             {
-                // 使用会话开始时间来计算总时长，而不是最后一次开始的时间
-                int elapsedDays = _sessionStartDays;
-                int elapsedHours = _sessionStartHours;
-                int elapsedMinutes = _sessionStartMinutes;
-                int elapsedSeconds = _sessionStartSeconds;
+                // 使用会话开始时间来计算总时长
+                int totalElapsedSeconds = _sessionStartDays * 86400 + _sessionStartHours * 3600 + _sessionStartMinutes * 60 + _sessionStartSeconds;
 
                 // 如果会话还没开始（直接完成），则使用_start时间
                 if (!IsSessionStarted)
                 {
-                    elapsedDays = _startDays;
-                    elapsedHours = _startHours;
-                    elapsedMinutes = _startMinutes;
-                    elapsedSeconds = _startSeconds;
+                    totalElapsedSeconds = _startDays * 86400 + _startHours * 3600 + _startMinutes * 60 + _startSeconds;
                 }
 
-                int totalElapsedSeconds = elapsedDays * 86400 + elapsedHours * 3600 + elapsedMinutes * 60 + elapsedSeconds;
-                string durationText = FormatDuration(elapsedDays, elapsedHours, elapsedMinutes, elapsedSeconds);
-                CurrentGoal.AddTimelineEntry($"完成了一次倒计时，时长：{durationText}");
-                CurrentGoal.AddElapsedSeconds(totalElapsedSeconds);
-                await DataStorageService.SaveGoalsAsync(DataStorageService.GoalsProvider?.Invoke() ?? new List<Goal>());
-
-                var sessionRecord = new SessionRecord(
-                    DateTime.Now.AddSeconds(-totalElapsedSeconds),
-                    DateTime.Now,
-                    SessionType.Focus,
-                    TimerSessionType.Countdown,
-                    CurrentGoal?.Id,
-                    CurrentGoal?.Title);
-                await StatisticsService.AddSessionAsync(sessionRecord);
+                await _sessionRecorder.RecordAsync(CurrentGoal, totalElapsedSeconds, TimerSessionType.Countdown, isStopwatchMode: false);
             }
 
             // 重置会话状态
@@ -313,12 +300,12 @@ namespace 积微.Services
             try
             {
                 var settings = SettingsManager.Current;
-                if (settings.NotificationSoundManager != null)
+                if (AudioServices.Notification != null)
                 {
-                    var notificationSound = settings.NotificationSoundManager.GetNotificationSound(settings.NotificationSoundName);
+                    var notificationSound = AudioServices.Notification.GetNotificationSound(settings.NotificationSoundName);
                     if (notificationSound != null)
                     {
-                        settings.NotificationSoundManager.PlayWithNewPlayer(notificationSound);
+                        AudioServices.Notification.PlayWithNewPlayer(notificationSound);
                     }
                 }
             }
@@ -361,7 +348,7 @@ namespace 积微.Services
                 }
 
                 IsActive = true;
-                GoalTimerManager.Instance.SetTimerActive(GoalTimerManager.TimerTypeNormal, true);
+                _goalTimerManager.SetTimerActive(GoalTimerManager.TimerTypeNormal, true);
                 _timer.Start();
             }
         }
@@ -372,7 +359,7 @@ namespace 积微.Services
             if (IsActive)
             {
                 IsActive = false;
-                GoalTimerManager.Instance.SetTimerActive(GoalTimerManager.TimerTypeNormal, false);
+                _goalTimerManager.SetTimerActive(GoalTimerManager.TimerTypeNormal, false);
                 _timer.Stop();
             }
         }
@@ -401,20 +388,9 @@ namespace 积微.Services
 
                 if (CurrentGoal != null && elapsedSeconds > 0)
                 {
-                    string durationText = FormatDuration(elapsedSeconds / 86400, (elapsedSeconds % 86400) / 3600, (elapsedSeconds % 3600) / 60, elapsedSeconds % 60);
-                    string entryText = IsStopwatchMode ? $"计时器记录，时长：{durationText}" : $"倒计时记录，时长：{durationText}";
-                    CurrentGoal.AddTimelineEntry(entryText);
-                    CurrentGoal.AddElapsedSeconds(elapsedSeconds);
-                    await DataStorageService.SaveGoalsAsync(DataStorageService.GoalsProvider?.Invoke() ?? new List<Goal>());
-
-                    var sessionRecord = new SessionRecord(
-                        DateTime.Now.AddSeconds(-elapsedSeconds),
-                        DateTime.Now,
-                        SessionType.Focus,
+                    await _sessionRecorder.RecordAsync(CurrentGoal, elapsedSeconds,
                         IsStopwatchMode ? TimerSessionType.Stopwatch : TimerSessionType.Countdown,
-                        CurrentGoal?.Id,
-                        CurrentGoal?.Title);
-                    await StatisticsService.AddSessionAsync(sessionRecord);
+                        IsStopwatchMode);
                 }
 
                 // 重置会话标志，为下一次会话做准备

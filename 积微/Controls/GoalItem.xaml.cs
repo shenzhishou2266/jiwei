@@ -1,4 +1,4 @@
-using System;
+﻿﻿using System;
 using System.Linq;
 using SW = System.Windows;
 using SWC = System.Windows.Controls;
@@ -9,6 +9,7 @@ using 积微.Models;
 using 积微.Services;
 using 积微.Views;
 using 积微.Helpers;
+using 积微.Services.Audio;
 
 namespace 积微.Controls
 {
@@ -411,7 +412,7 @@ namespace 积微.Controls
                     var newSubgoal = new Goal(addSubgoalWindow.GoalTitle, addSubgoalWindow.GoalDescription);
                     newSubgoal.Type = addSubgoalWindow.SelectedGoalType;
                     Goal.AddChild(newSubgoal);
-                    await DataStorageService.SaveGoalsAsync(GoalsPage.Goals);
+                    await GoalsPage.ViewModel!.SaveAsync();
                     IsExpanded = true;
                     ChildrenPanel.Visibility = SW.Visibility.Visible;
                     UpdateExpandIcon();
@@ -466,17 +467,17 @@ namespace 积微.Controls
             {
                 var oldStatus = Goal.Status;
                 statusAction();
-                await DataStorageService.SaveGoalsAsync(GoalsPage.Goals);
+                await GoalsPage.ViewModel!.SaveAsync();
 
                 if (playSound)
                 {
                     var settings = SettingsManager.Current;
-                    if (settings.NotificationSoundManager != null)
+                    if (AudioServices.Notification != null)
                     {
-                        var notificationSound = settings.NotificationSoundManager.GetNotificationSound("音效四");
+                        var notificationSound = AudioServices.Notification.GetNotificationSound("音效四");
                         if (notificationSound != null)
                         {
-                            settings.NotificationSoundManager.Play(notificationSound);
+                            AudioServices.Notification.Play(notificationSound);
                         }
                     }
                 }
@@ -496,16 +497,16 @@ namespace 积微.Controls
             try
             {
                 Goal.IncrementRecurringCompletion();
-                await DataStorageService.SaveGoalsAsync(GoalsPage.Goals);
+                await GoalsPage.ViewModel!.SaveAsync();
 
                 // 播放完成提示音
                 var settings = SettingsManager.Current;
-                if (settings.NotificationSoundManager != null)
+                if (AudioServices.Notification != null)
                 {
-                    var notificationSound = settings.NotificationSoundManager.GetNotificationSound("音效四");
+                    var notificationSound = AudioServices.Notification.GetNotificationSound("音效四");
                     if (notificationSound != null)
                     {
-                        settings.NotificationSoundManager.Play(notificationSound);
+                        AudioServices.Notification.Play(notificationSound);
                     }
                 }
 
@@ -535,9 +536,16 @@ namespace 积微.Controls
                     }
                     else
                     {
-                        GoalsPage.Goals.Remove(Goal);
+                        GoalsPage.ViewModel!.RemoveGoal(Goal);
                     }
-                    await DataStorageService.SaveGoalsAsync(GoalsPage.Goals);
+
+                    // 如果被删除的目标正是当前计时器/番茄钟的目标，清除引用
+                    if (TimerService.Instance.CurrentGoal?.Id == Goal.Id)
+                        TimerService.Instance.CurrentGoal = null;
+                    if (FocusSessionService.Instance.CurrentGoal?.Id == Goal.Id)
+                        FocusSessionService.Instance.CurrentGoal = null;
+
+                    await GoalsPage.ViewModel!.SaveAsync();
                     // 从父容器中移除自身
                     var parent = this.Parent as SWC.Panel;
                     if (parent != null)
@@ -583,7 +591,7 @@ namespace 积微.Controls
                     Goal.Parent.RemoveChild(Goal);
                     Goal.Parent = null;
                     GoalsPage.Goals.Add(Goal);
-                    await DataStorageService.SaveGoalsAsync(GoalsPage.Goals);
+                    await GoalsPage.ViewModel!.SaveAsync();
                     // 刷新整个页面以更新目标列表
                     var goalsPage = FindParentGoalsPage(this);
                     goalsPage?.RefreshGoals();
@@ -647,7 +655,7 @@ namespace 积微.Controls
                     GoalsPage.Goals.Remove(Goal);
                 }
                 newParent.AddChild(Goal);
-                await DataStorageService.SaveGoalsAsync(GoalsPage.Goals);
+                await GoalsPage.ViewModel!.SaveAsync();
                 GoalContextMenu.IsOpen = false;
                 // 刷新整个页面以更新目标层级
                 var goalsPage = FindParentGoalsPage(this);

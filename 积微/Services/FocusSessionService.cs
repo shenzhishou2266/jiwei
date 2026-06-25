@@ -1,16 +1,18 @@
+using Microsoft.Extensions.DependencyInjection;
 using System;
 using System.ComponentModel;
 using System.Runtime.CompilerServices;
 using System.Windows.Threading;
 using 积微.Models;
+using 积微.Services.Audio;
 namespace 积微.Services
 {
     /// <summary>番茄钟计时器服务，支持工作/休息会话切换和自动轮换</summary>
     public class FocusSessionService : INotifyPropertyChanged
     {
         private static FocusSessionService? _instance;
-        /// <summary>单例实例</summary>
-        public static FocusSessionService Instance => _instance ??= new FocusSessionService();
+        /// <summary>单例实例（从 DI 容器解析）</summary>
+        public static FocusSessionService Instance => _instance ??= AppServices.Provider.GetRequiredService<FocusSessionService>();
 
         private int _minutes;
         private int _seconds;
@@ -19,6 +21,8 @@ namespace 积微.Services
         private int _completedSessions;
         private Goal? _currentGoal;
         private DispatcherTimer _timer;
+        private readonly SessionRecorder _sessionRecorder;
+        private readonly GoalTimerManager _goalTimerManager;
 
         private int _sessionStartSeconds;
         private bool _sessionStarted;
@@ -101,7 +105,7 @@ namespace 积微.Services
             set
             {
                 _currentGoal = value;
-                GoalTimerManager.Instance.SetGoalForTimer(value, GoalTimerManager.TimerTypePomodoro);
+                _goalTimerManager.SetGoalForTimer(value, GoalTimerManager.TimerTypePomodoro);
                 OnPropertyChanged();
                 OnPropertyChanged(nameof(CurrentGoalDisplay));
             }
@@ -131,8 +135,10 @@ namespace 积微.Services
             }
         }
 
-        private FocusSessionService()
+        public FocusSessionService(SessionRecorder sessionRecorder, GoalTimerManager goalTimerManager)
         {
+            _sessionRecorder = sessionRecorder;
+            _goalTimerManager = goalTimerManager;
             _timer = new DispatcherTimer();
             _timer.Interval = TimeSpan.FromSeconds(1);
             _timer.Tick += Timer_Tick;
@@ -199,25 +205,9 @@ namespace 积微.Services
 
             if (CurrentGoal != null)
             {
-                string sessionType = IsWorkSession ? "工作" : "休息";
-                CurrentGoal.AddTimelineEntry($"完成了一个{sessionType}番茄钟，时长：{totalDuration}分钟");
-                if (IsWorkSession)
-                {
-                    CurrentGoal.AddElapsedSeconds(totalDuration * 60);
-                }
-                await DataStorageService.SaveGoalsAsync(DataStorageService.GoalsProvider?.Invoke() ?? new List<Goal>());
-            }
-
-            if (IsWorkSession)
-            {
-                var sessionRecord = new SessionRecord(
-                    DateTime.Now.AddSeconds(-totalDuration * 60),
-                    DateTime.Now,
-                    SessionType.Focus,
-                    TimerSessionType.PomodoroFocus,
-                    CurrentGoal?.Id,
-                    CurrentGoal?.Title);
-                await StatisticsService.AddSessionAsync(sessionRecord);
+                await _sessionRecorder.RecordAsync(CurrentGoal, totalDuration * 60,
+                    IsWorkSession ? TimerSessionType.PomodoroFocus : TimerSessionType.PomodoroBreak,
+                    isStopwatchMode: false, isStopRecord: false);
             }
 
             _sessionStarted = false;
@@ -253,12 +243,12 @@ namespace 积微.Services
             try
             {
                 var settings = SettingsManager.Current;
-                if (settings.NotificationSoundManager != null)
+                if (AudioServices.Notification != null)
                 {
-                    var notificationSound = settings.NotificationSoundManager.GetNotificationSound(settings.NotificationSoundName);
+                    var notificationSound = AudioServices.Notification.GetNotificationSound(settings.NotificationSoundName);
                     if (notificationSound != null)
                     {
-                        settings.NotificationSoundManager.PlayWithNewPlayer(notificationSound);
+                        AudioServices.Notification.PlayWithNewPlayer(notificationSound);
                     }
                 }
             }
@@ -294,7 +284,7 @@ namespace 积微.Services
                     _sessionStarted = true;
                 }
                 IsActive = true;
-                GoalTimerManager.Instance.SetTimerActive(GoalTimerManager.TimerTypePomodoro, true);
+                _goalTimerManager.SetTimerActive(GoalTimerManager.TimerTypePomodoro, true);
                 _timer.Start();
             }
         }
@@ -305,7 +295,7 @@ namespace 积微.Services
             if (IsActive)
             {
                 IsActive = false;
-                GoalTimerManager.Instance.SetTimerActive(GoalTimerManager.TimerTypePomodoro, false);
+                _goalTimerManager.SetTimerActive(GoalTimerManager.TimerTypePomodoro, false);
                 _timer.Stop();
             }
         }
@@ -331,33 +321,13 @@ namespace 积微.Services
                     actualCompletedSeconds = totalDurationSeconds - totalRemainingSeconds - _sessionStartSeconds;
                 }
 
-                int actualCompletedMinutes = actualCompletedSeconds / 60;
-                int actualCompletedSecondsRemainder = actualCompletedSeconds % 60;
-
                 StopTimer();
 
                 if (CurrentGoal != null && actualCompletedSeconds > 0)
                 {
-                    string sessionType = IsWorkSession ? "工作" : "休息";
-                    string durationText = $"{actualCompletedMinutes}分{actualCompletedSecondsRemainder}秒";
-                    CurrentGoal.AddTimelineEntry($"停止了一个{sessionType}番茄钟，实际完成时长：{durationText}");
-                    if (IsWorkSession)
-                    {
-                        CurrentGoal.AddElapsedSeconds(actualCompletedSeconds);
-                    }
-                    await DataStorageService.SaveGoalsAsync(DataStorageService.GoalsProvider?.Invoke() ?? new List<Goal>());
-
-                    if (IsWorkSession)
-                    {
-                        var sessionRecord = new SessionRecord(
-                            DateTime.Now.AddSeconds(-actualCompletedSeconds),
-                            DateTime.Now,
-                            SessionType.Focus,
-                            TimerSessionType.Countdown,
-                            CurrentGoal?.Id,
-                            CurrentGoal?.Title);
-                        await StatisticsService.AddSessionAsync(sessionRecord);
-                    }
+                    await _sessionRecorder.RecordAsync(CurrentGoal, actualCompletedSeconds,
+                        IsWorkSession ? TimerSessionType.PomodoroFocus : TimerSessionType.PomodoroBreak,
+                        isStopwatchMode: false, isStopRecord: true);
                 }
 
                 _sessionStarted = false;

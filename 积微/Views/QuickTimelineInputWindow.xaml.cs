@@ -7,7 +7,6 @@ using System.Windows.Input;
 using System.Windows.Media.Imaging;
 using Microsoft.Win32;
 using 积微.Models;
-using 积微.Services;
 using 积微.Helpers;
 using MouseButtonEventArgs = System.Windows.Input.MouseButtonEventArgs;
 
@@ -257,7 +256,7 @@ namespace 积微.Views
                         DateTime.Now,
                         imagePathList
                     );
-                    await DataStorageService.SaveGoalsAsync(GoalsPage.Goals);
+                    await GoalsPage.ViewModel!.SaveAsync();
                 }
             }
 

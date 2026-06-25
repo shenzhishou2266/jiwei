@@ -1,3 +1,4 @@
+using Microsoft.Extensions.DependencyInjection;
 using System;
 using System.Collections.Generic;
 using 积微.Models;
@@ -8,8 +9,9 @@ namespace 积微.Services
     public class GoalTimerManager
     {
         private static GoalTimerManager? _instance;
-        /// <summary>单例实例</summary>
-        public static GoalTimerManager Instance => _instance ??= new GoalTimerManager();
+        /// <summary>单例实例（从 DI 容器解析）</summary>
+        [Obsolete("建议通过依赖注入（构造函数参数）获取 GoalTimerManager 实例。")]
+        public static GoalTimerManager Instance => _instance ??= AppServices.Provider.GetRequiredService<GoalTimerManager>();
 
         /// <summary>番茄钟计时器类型标识</summary>
         public const string TimerTypePomodoro = "Pomodoro";
@@ -22,7 +24,7 @@ namespace 积微.Services
         /// <summary>目标变更事件</summary>
         public event EventHandler<GoalChangedEventArgs>? GoalChanged;
 
-        private GoalTimerManager()
+        public GoalTimerManager()
         {
             _timerCurrentGoals[TimerTypePomodoro] = null;
             _timerCurrentGoals[TimerTypeNormal] = null;

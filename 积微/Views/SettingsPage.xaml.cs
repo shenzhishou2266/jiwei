@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Linq;
 using SW = System.Windows;
@@ -49,7 +49,7 @@ namespace 积微.Views
             {
                 NotificationSoundVolumeValue.Text = $"{(int)NotificationSoundVolumeSlider.Value}%";
                 var settings = SettingsManager.Current;
-                settings.NotificationSoundManager.SetVolume(NotificationSoundVolumeSlider.Value);
+                AudioServices.Notification.SetVolume(NotificationSoundVolumeSlider.Value);
                 AutoSaveSettings();
             };
 
@@ -66,9 +66,9 @@ namespace 积微.Views
                 try
                 {
                     if (isWhiteNoisePlaying)
-                        settings.WhiteNoiseManager.Play();
+                        AudioServices.WhiteNoise.Play();
                     else
-                        settings.WhiteNoiseManager.Stop();
+                        AudioServices.WhiteNoise.Stop();
                 }
                 catch
                 {
@@ -130,7 +130,7 @@ namespace 积微.Views
             NotificationSoundEnabledCheckBox.IsChecked = settings.NotificationSoundEnabled;
             NotificationSoundVolumeSlider.Value = settings.NotificationSoundVolume;
             NotificationSoundVolumeValue.Text = $"{settings.NotificationSoundVolume}%";
-            settings.NotificationSoundManager.SetVolume(settings.NotificationSoundVolume);
+            AudioServices.Notification.SetVolume(settings.NotificationSoundVolume);
             WhiteNoiseEnabledCheckBox.IsChecked = settings.WhiteNoiseEnabled;
 
             StoragePathTextBox.Text = settings.DataStoragePath;
@@ -229,10 +229,10 @@ namespace 积微.Views
 
             try
             {
-                var notificationSound = settings.NotificationSoundManager.GetNotificationSound(settings.NotificationSoundName);
+                var notificationSound = AudioServices.Notification.GetNotificationSound(settings.NotificationSoundName);
                 if (notificationSound != null)
                 {
-                    settings.NotificationSoundManager.Play(notificationSound);
+                    AudioServices.Notification.Play(notificationSound);
                 }
             }
             catch
@@ -292,7 +292,7 @@ namespace 积微.Views
                 settings.NotificationSoundVolume = (int)NotificationSoundVolumeSlider.Value;
 
                 var whiteNoiseStates = new List<string>();
-                var whiteNoiseManager = settings.WhiteNoiseManager;
+                var whiteNoiseManager = AudioServices.WhiteNoise;
                 foreach (var whiteNoise in whiteNoiseManager.WhiteNoises)
                 {
                     var player = whiteNoiseManager.GetPlayer(whiteNoise);
@@ -355,7 +355,7 @@ namespace 积微.Views
             var settings = SettingsManager.Current;
             _notificationSoundViewModels.Clear();
 
-            foreach (var notificationSound in settings.NotificationSoundManager.NotificationSounds)
+            foreach (var notificationSound in AudioServices.Notification.NotificationSounds)
             {
                 bool isSelected = notificationSound.Name == settings.NotificationSoundName;
                 _notificationSoundViewModels.Add(
@@ -368,9 +368,9 @@ namespace 积微.Views
             var settings = SettingsManager.Current;
             _whiteNoiseViewModels.Clear();
 
-            foreach (var whiteNoise in settings.WhiteNoiseManager.WhiteNoises)
+            foreach (var whiteNoise in AudioServices.WhiteNoise.WhiteNoises)
             {
-                var player = settings.WhiteNoiseManager.GetPlayer(whiteNoise);
+                var player = AudioServices.WhiteNoise.GetPlayer(whiteNoise);
                 bool isEnabled = player?.IsEnabled ?? false;
                 int volume = player?.Volume ?? 50;
 
@@ -388,7 +388,7 @@ namespace 积微.Views
             var settings = SettingsManager.Current;
             int volume = (int)slider.Value;
             viewModel.Volume = volume;
-            settings.WhiteNoiseManager.UpdatePlayerState(viewModel.WhiteNoise, viewModel.IsEnabled, volume);
+            AudioServices.WhiteNoise.UpdatePlayerState(viewModel.WhiteNoise, viewModel.IsEnabled, volume);
             AutoSaveSettings();
         }
 
@@ -423,18 +423,18 @@ namespace 积微.Views
 
                 viewModel.IsEnabled = !viewModel.IsEnabled;
 
-                settings.WhiteNoiseManager.UpdatePlayerState(viewModel.WhiteNoise, viewModel.IsEnabled,
+                AudioServices.WhiteNoise.UpdatePlayerState(viewModel.WhiteNoise, viewModel.IsEnabled,
                     viewModel.Volume);
 
-                if (settings.WhiteNoiseManager.IsPlaying)
+                if (AudioServices.WhiteNoise.IsPlaying)
                 {
                     if (viewModel.IsEnabled)
                     {
-                        settings.WhiteNoiseManager.Play(viewModel.WhiteNoise);
+                        AudioServices.WhiteNoise.Play(viewModel.WhiteNoise);
                     }
                     else
                     {
-                        settings.WhiteNoiseManager.Stop(viewModel.WhiteNoise);
+                        AudioServices.WhiteNoise.Stop(viewModel.WhiteNoise);
                     }
                 }
 

@@ -17,9 +17,6 @@ namespace 积微.Services
             ReferenceHandler = ReferenceHandler.Preserve
         };
 
-        /// <summary>目标列表提供器委托，由Views层设置以避免Models→Views耦合</summary>
-        public static Func<List<Goal>>? GoalsProvider { get; set; }
-
         private static string GetDataFilePath()
         {
             string dataStoragePath = SettingsManager.Current.DataStoragePath;

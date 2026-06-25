@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.ComponentModel;
 using System.Windows;
 using System.Windows.Input;
@@ -56,7 +56,7 @@ namespace 积微.Views
             // 初始化置顶属性
             this.Topmost = settings.WidgetWindowTopmost;
             
-            if (settings.WhiteNoiseManager is INotifyPropertyChanged whiteNoiseManager)
+            if (AudioServices.WhiteNoise is INotifyPropertyChanged whiteNoiseManager)
             {
                 whiteNoiseManager.PropertyChanged += WhiteNoiseManager_PropertyChanged;
             }
@@ -216,7 +216,7 @@ namespace 积微.Views
         {
             var settings = SettingsManager.Current;
             WhiteNoiseButton.Visibility = settings.WhiteNoiseEnabled ? SW.Visibility.Visible : SW.Visibility.Collapsed;
-            if (settings.WhiteNoiseEnabled && settings.WhiteNoiseManager.IsPlaying)
+            if (settings.WhiteNoiseEnabled && AudioServices.WhiteNoise.IsPlaying)
             {
                 WhiteNoiseIcon.Fill = new SWM.SolidColorBrush(SWM.Color.FromRgb(16, 185, 129));
             }
@@ -468,13 +468,13 @@ namespace 积微.Views
             var settings = SettingsManager.Current;
             if (settings.WhiteNoiseEnabled)
             {
-                if (settings.WhiteNoiseManager.IsPlaying)
+                if (AudioServices.WhiteNoise.IsPlaying)
                 {
-                    settings.WhiteNoiseManager.Stop();
+                    AudioServices.WhiteNoise.Stop();
                 }
                 else
                 {
-                    settings.WhiteNoiseManager.Play();
+                    AudioServices.WhiteNoise.Play();
                 }
                 UpdateWhiteNoiseButton();
             }
@@ -648,7 +648,7 @@ namespace 积微.Views
             settings.WidgetWindowTop = this.Top;
             SettingsManager.SaveSettings();
 
-            if (settings.WhiteNoiseManager is INotifyPropertyChanged whiteNoiseManager)
+            if (AudioServices.WhiteNoise is INotifyPropertyChanged whiteNoiseManager)
             {
                 whiteNoiseManager.PropertyChanged -= WhiteNoiseManager_PropertyChanged;
             }

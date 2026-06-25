@@ -28,6 +28,7 @@ namespace 积微.Views
         {
             InitializeComponent();
             InitializePages();
+            App.RegisterThemeWindow(this);
         }
 
         private void InitializePages()
